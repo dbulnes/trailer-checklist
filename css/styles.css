@@ -205,6 +205,16 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 }
 .radio-btn.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
 .radio-btn.warn-selected { background: var(--warn); border-color: var(--warn); color: #fff; }
+.issues-list-section label { font-size: .8rem; color: var(--text2); display: block; margin-bottom: 6px; }
+.issues-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.issues-list:empty { display: none; }
+.issue-entry { display: flex; align-items: center; gap: 8px; background: var(--surface2); border-radius: 8px; padding: 8px 10px; font-size: .85rem; color: var(--text); }
+.issue-entry span { flex: 1; min-width: 0; word-break: break-word; }
+.issue-entry button { flex-shrink: 0; background: none; border: none; color: var(--warn); font-size: 1rem; cursor: pointer; padding: 0 4px; line-height: 1; }
+.issues-add-row { display: flex; gap: 6px; }
+.issues-add-input { flex: 1; background: var(--surface2); border: 1px solid #3a3a5a; color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: .85rem; outline: none; }
+.issues-add-input:focus { border-color: var(--accent); }
+.issues-add-btn { flex-shrink: 0; padding: 0 14px; font-size: 1.1rem; font-weight: 700; }
 
 /* Nav tabs at bottom */
 .bottom-nav {

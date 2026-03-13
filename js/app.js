@@ -700,11 +700,15 @@ function buildSummary() {
     `<span class="radio-btn ${state.summary.action === a ? (a === 'Walk away' ? 'warn-selected' : 'selected') : ''}" onclick="setRadio('action','${a}',this)">${a}</span>`
   ).join('');
 
-  // Text fields
+  // Text fields (repairCosts only now — issues moved to dynamic lists)
   document.querySelectorAll('[data-summary]').forEach(el => {
     el.value = state.summary[el.dataset.summary] || '';
     el.oninput = () => { state.summary[el.dataset.summary] = el.value; autoSave(); };
   });
+
+  // Render dynamic issues lists
+  renderIssuesList('major');
+  renderIssuesList('minor');
 }
 
 function setRadio(field, value, el) {
@@ -712,6 +716,48 @@ function setRadio(field, value, el) {
   const warn = (value === 'Poor' || value === 'Walk away');
   el.parentElement.querySelectorAll('.radio-btn').forEach(b => b.className = 'radio-btn');
   el.classList.add(warn ? 'warn-selected' : 'selected');
+  autoSave();
+}
+
+// ---- DYNAMIC ISSUES LISTS ----
+// Migrates old string-based majorIssues/minorIssues to arrays
+function getIssuesList(type) {
+  const listKey = type + 'IssuesList';
+  const oldKey = type + 'Issues';
+  if (!state.summary[listKey]) {
+    state.summary[listKey] = [];
+    // Migrate old string data
+    if (state.summary[oldKey]) {
+      state.summary[listKey] = state.summary[oldKey].split('\n').map(s => s.trim()).filter(Boolean);
+      delete state.summary[oldKey];
+      autoSave();
+    }
+  }
+  return state.summary[listKey];
+}
+
+function renderIssuesList(type) {
+  const list = getIssuesList(type);
+  const container = document.getElementById(type + 'IssuesList');
+  container.innerHTML = list.map((item, i) =>
+    `<div class="issue-entry"><span>${escHtml(item)}</span><button onclick="removeIssueItem('${type}',${i})">&times;</button></div>`
+  ).join('');
+}
+
+function addIssueItem(type) {
+  const input = document.getElementById(type + 'IssueInput');
+  const text = input.value.trim();
+  if (!text) return;
+  getIssuesList(type).push(text);
+  input.value = '';
+  renderIssuesList(type);
+  autoSave();
+  input.focus();
+}
+
+function removeIssueItem(type, index) {
+  getIssuesList(type).splice(index, 1);
+  renderIssuesList(type);
   autoSave();
 }
 
@@ -774,14 +820,16 @@ function exportMarkdown() {
 
   // Assessment (up front, like the PDF)
   const sf = d.summary;
-  if (sf.condition || sf.action || sf.majorIssues || sf.minorIssues || sf.repairCosts) {
+  const majorList = sf.majorIssuesList || [];
+  const minorList = sf.minorIssuesList || [];
+  if (sf.condition || sf.action || majorList.length || minorList.length || sf.repairCosts) {
     md += '## Assessment\n\n';
     if (sf.condition) md += `- **Overall Condition:** ${sf.condition}\n`;
     if (sf.action) md += `- **Recommended Action:** ${sf.action}\n`;
     if (sf.repairCosts) md += `- **Est. Repair Costs:** ${sf.repairCosts}\n`;
     md += '\n';
-    if (sf.majorIssues) md += `**Major Issues:** ${sf.majorIssues}\n\n`;
-    if (sf.minorIssues) md += `**Minor Issues:** ${sf.minorIssues}\n\n`;
+    if (majorList.length) md += `**Major Issues:**\n${majorList.map(i => `- ${i}`).join('\n')}\n\n`;
+    if (minorList.length) md += `**Minor Issues:**\n${minorList.map(i => `- ${i}`).join('\n')}\n\n`;
   }
 
   // Issues table
@@ -1031,13 +1079,15 @@ async function exportPDF() {
 
   // ---- ASSESSMENT (before details, if filled) ----
   const sf = d.summary;
-  if (sf.condition || sf.action || sf.majorIssues || sf.minorIssues || sf.repairCosts) {
+  const majorPdf = sf.majorIssuesList || [];
+  const minorPdf = sf.minorIssuesList || [];
+  if (sf.condition || sf.action || majorPdf.length || minorPdf.length || sf.repairCosts) {
     html += '<div class="assessment"><h2>Assessment</h2><div class="assessment-grid">';
     if (sf.condition) html += `<div class="assessment-item"><div class="a-label">Overall Condition</div><div class="a-value">${escHtml(sf.condition)}</div></div>`;
     if (sf.action) html += `<div class="assessment-item"><div class="a-label">Recommended Action</div><div class="a-value">${escHtml(sf.action)}</div></div>`;
     if (sf.repairCosts) html += `<div class="assessment-item"><div class="a-label">Est. Repair Costs</div><div class="a-value">${escHtml(sf.repairCosts)}</div></div>`;
-    if (sf.majorIssues) html += `<div class="assessment-item assessment-full"><div class="a-label">Major Issues</div><div class="a-value">${escHtml(sf.majorIssues)}</div></div>`;
-    if (sf.minorIssues) html += `<div class="assessment-item assessment-full"><div class="a-label">Minor Issues</div><div class="a-value">${escHtml(sf.minorIssues)}</div></div>`;
+    if (majorPdf.length) html += `<div class="assessment-item assessment-full"><div class="a-label">Major Issues</div><div class="a-value"><ul>${majorPdf.map(i => `<li>${escHtml(i)}</li>`).join('')}</ul></div></div>`;
+    if (minorPdf.length) html += `<div class="assessment-item assessment-full"><div class="a-label">Minor Issues</div><div class="a-value"><ul>${minorPdf.map(i => `<li>${escHtml(i)}</li>`).join('')}</ul></div></div>`;
     html += '</div></div>';
   }
 

@@ -64,13 +64,21 @@
     <label>Recommended Action</label>
     <div class="radio-group" id="actionGroup"></div>
   </div>
-  <div class="input-item" style="margin-top:16px">
+  <div class="issues-list-section" style="margin-top:16px">
     <label>Major Issues Found</label>
-    <textarea rows="3" data-summary="majorIssues" placeholder="List major issues..."></textarea>
+    <div class="issues-list" id="majorIssuesList"></div>
+    <div class="issues-add-row">
+      <input type="text" id="majorIssueInput" placeholder="Add major issue..." class="issues-add-input" onkeydown="if(event.key==='Enter')addIssueItem('major')">
+      <button class="btn issues-add-btn" onclick="addIssueItem('major')">+</button>
+    </div>
   </div>
-  <div class="input-item" style="margin-top:8px">
+  <div class="issues-list-section" style="margin-top:12px">
     <label>Minor Issues Found</label>
-    <textarea rows="3" data-summary="minorIssues" placeholder="List minor issues..."></textarea>
+    <div class="issues-list" id="minorIssuesList"></div>
+    <div class="issues-add-row">
+      <input type="text" id="minorIssueInput" placeholder="Add minor issue..." class="issues-add-input" onkeydown="if(event.key==='Enter')addIssueItem('minor')">
+      <button class="btn issues-add-btn" onclick="addIssueItem('minor')">+</button>
+    </div>
   </div>
   <div class="input-item" style="margin-top:8px">
     <label>Estimated Repair Costs</label>
