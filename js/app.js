@@ -1187,23 +1187,39 @@ async function exportPDF() {
 
   html += '</body></html>';
 
-  // Open print dialog in a new window
+  // Mobile: download as HTML file (avoids window.open trap in iOS PWA)
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    const filename = (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection').replace(/ /g, '_') + '.html';
+    await downloadBlob(new Blob([html], { type: 'text/html' }), filename);
+    showToast('HTML report exported');
+    return;
+  }
+
+  // Desktop: open print dialog in a new window
   const printWin = window.open('', '_blank');
-  if (!printWin) { showToast('Please allow popups to export PDF', true); return; }
+  if (!printWin) { showToast('Please allow popups to export', true); return; }
   printWin.document.write(html);
   printWin.document.close();
-  // Wait for fonts and images to load before printing
   const images = printWin.document.querySelectorAll('img');
   const imgLoaded = images.length ? Promise.all(Array.from(images).map(img =>
     img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
   )) : Promise.resolve();
   const fontLoaded = printWin.document.fonts ? printWin.document.fonts.ready : Promise.resolve();
   await Promise.all([imgLoaded, fontLoaded]);
-  showToast('Opening print dialog…', false, 3000);
   printWin.print();
 }
 
-function downloadBlob(blob, filename) {
+async function downloadBlob(blob, filename) {
+  // iOS PWA: use Web Share API (native share sheet with "Save to Files")
+  if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename)] })) {
+    try {
+      await navigator.share({ files: [new File([blob], filename, { type: blob.type })] });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled share
+    }
+  }
+  // Desktop / fallback: standard download link
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
