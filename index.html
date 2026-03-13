@@ -23,7 +23,7 @@ html { font-size: 16px; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
   background: var(--bg); color: var(--text);
-  min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom, 20px);
+  min-height: 100dvh;
   -webkit-text-size-adjust: 100%;
 }
 h1 { font-size: 1.3rem; font-weight: 700; }
@@ -210,7 +210,8 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 /* Summary section */
 .summary-card {
   margin: 12px; background: var(--surface); border-radius: var(--radius);
-  padding: 16px; display: none;
+  padding: 16px; padding-bottom: calc(16px + 70px + env(safe-area-inset-bottom, 0px));
+  display: none;
 }
 .summary-card.visible { display: block; }
 .summary-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
@@ -251,7 +252,7 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 .nav-icon { font-size: 1.2rem; }
 
 /* Views */
-.view { display: none; padding-bottom: 70px; }
+.view { display: none; padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
 .view.active { display: block; }
 
 /* Modal */
@@ -316,7 +317,8 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 .cloud-msg.visible { display: block; }
 /* Conflict banner */
 .conflict-banner {
-  display: none; margin: 12px; padding: 12px; border-radius: var(--radius);
+  display: none; margin: 12px; margin-bottom: calc(12px + 70px + env(safe-area-inset-bottom, 0px));
+  padding: 12px; border-radius: var(--radius);
   background: #2a2a10; border: 1px solid #4a4a1a; font-size: .85rem;
 }
 .conflict-banner.visible { display: block; }
