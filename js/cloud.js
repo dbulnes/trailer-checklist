@@ -647,6 +647,7 @@ async function reconcileOnLoad() {
     supabaseClient.from('inspections').delete()
       .eq('user_id', currentUser.id).eq('name', '__autosave__').then(() => {});
 
+    await pullPhotosFromCloud();
     lastSyncTime = Date.now();
     setSyncStatus('synced');
   } catch (e) {
