@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Self-contained PWA for pre-purchase camper trailer inspections. Users can name each checklist (e.g. "2021 Micro Minnie 1708FB") via a field in the header. No build tools, no dependencies, no framework — just static files served directly.
+RV Inspect — self-contained PWA for pre-purchase RV and camper trailer inspections. Users can name each checklist (e.g. "2021 Micro Minnie 1708FB") via a field in the header. No build tools, no dependencies, no framework — just static files served directly.
 
 ## Running Locally
 

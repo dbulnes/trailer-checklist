@@ -507,8 +507,8 @@ document.querySelectorAll('[data-info]').forEach(el => {
 
 function updateAppTitle() {
   const name = (state.info.name || '').trim();
-  document.getElementById('appTitle').textContent = name ? '🏕️ ' + name : '🏕️ Camper Trailer Inspector';
-  document.title = name || 'Camper Trailer Inspector';
+  document.getElementById('appTitle').textContent = name ? '🏕️ ' + name : '🏕️ RV Inspect';
+  document.title = name || 'RV Inspect';
 }
 
 function loadInfoFields() {
@@ -587,7 +587,7 @@ function setRadio(field, value, el) {
 }
 
 function exportSummary() {
-  const summaryTitle = (state.info.name || 'CAMPER TRAILER INSPECTION').toUpperCase();
+  const summaryTitle = (state.info.name || 'RV INSPECTION').toUpperCase();
   let text = `=== ${summaryTitle} SUMMARY ===\n\n`;
 
   // Info

@@ -1,6 +1,6 @@
 # RV Inspect
 
-A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspections of camper trailers and RVs. Name each checklist to match the unit you're inspecting.
+A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspections of RVs and camper trailers. Name each checklist to match the unit you're inspecting.
 
 ## Features
 
@@ -108,7 +108,7 @@ Your inspections will now sync across any device where you sign in.
 
 ## Based On
 
-The default checklist items are based on the included [Micro Minnie Inspection Checklist.pdf](Micro%20Minnie%20Inspection%20Checklist.pdf), a comprehensive pre-purchase inspection guide that covers most camper trailer systems.
+The default checklist items are based on the included [Micro Minnie Inspection Checklist.pdf](Micro%20Minnie%20Inspection%20Checklist.pdf), a comprehensive pre-purchase inspection guide that covers most RV and camper trailer systems.
 
 ## License
 
