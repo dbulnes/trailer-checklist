@@ -437,7 +437,11 @@ function subscribeRealtime() {
       saves[row.name] = { data: merged, ts: cloudTs };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
       if (row.name === currentSaveName) {
-        loadState(merged);
+        // Patch state in-place and update UI without re-rendering (preserves open sections)
+        state = JSON.parse(JSON.stringify(merged));
+        ensureByField();
+        patchUI();
+        pullPhotosFromCloud();
       }
       lastSyncTime = Date.now();
       setSyncStatus('synced');
@@ -501,8 +505,9 @@ async function cloudSyncNow() {
         // Local-only → push
         toPush.push({ name, data: save.data });
       } else if (cloud.ts > (save.ts || 0)) {
-        // Cloud is newer → pull
-        saves[name] = { data: cloud.state, ts: cloud.ts };
+        // Cloud is newer → pull, merge attributions
+        const merged = mergeByAttribution(cloud.state, save.data);
+        saves[name] = { data: merged, ts: cloud.ts };
         localUpdated = true;
       } else if ((save.ts || 0) > cloud.ts) {
         // Local is newer → push

@@ -242,6 +242,44 @@ function updateAttribution(key) {
   }
 }
 
+// ====== PATCH UI (non-destructive sync update) ======
+// Updates check boxes, notes, inputs, and attribution in-place without
+// re-rendering sections — preserves open/collapsed state and scroll position.
+function patchUI() {
+  _wasMulti = isMultiContributor();
+  SECTIONS.forEach(section => {
+    section.items.forEach((item, i) => {
+      const key = `${section.id}_${i}`;
+      const checkState = state.checks[key] || 'unchecked';
+      const box = document.getElementById('box_' + key);
+      if (box) {
+        box.className = 'check-box';
+        box.textContent = '';
+        if (checkState === 'ok') { box.classList.add('checked'); box.textContent = '✓'; }
+        else if (checkState === 'issue') { box.classList.add('issue'); box.textContent = '✗'; }
+        else if (checkState === 'na') { box.classList.add('na'); box.textContent = '—'; }
+      }
+      const noteEl = document.getElementById('note_' + key);
+      if (noteEl && document.activeElement !== noteEl) {
+        noteEl.value = state.notes[key] || '';
+        if (state.notes[key]) noteEl.classList.add('visible');
+      }
+      const isObj = typeof item === 'object';
+      if (isObj && item.input) {
+        const inputEl = document.querySelector(`input.check-note[oninput*="'${key}'"]`);
+        if (inputEl && document.activeElement !== inputEl) {
+          inputEl.value = state.inputs[key] || '';
+        }
+      }
+      const attrEl = document.getElementById('attr_' + key);
+      if (attrEl) attrEl.textContent = _wasMulti && state.by?.[key] ? state.by[key] : '';
+    });
+    updateBadge(section.id);
+  });
+  loadInfoFields();
+  updateProgress();
+}
+
 // ====== PHOTOS (IndexedDB) ======
 // Photos are stored in IndexedDB (not localStorage) because images are too large.
 // Each photo is resized to max 1200px and compressed to JPEG before storing.
