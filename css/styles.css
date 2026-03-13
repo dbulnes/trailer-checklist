@@ -50,6 +50,7 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
   color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: .9rem;
   outline: none;
 }
+.info-field input[type="date"] { -webkit-appearance: none; appearance: none; text-align: left; min-width: 0; max-width: 100%; }
 .info-field input:focus { border-color: var(--accent); }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 480px) { .info-grid { grid-template-columns: 1fr; } }
