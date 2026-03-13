@@ -148,7 +148,7 @@ async function loadCloudSave(name) {
     pullPhotosFromCloud();
   } catch (e) {
     console.error('Failed to load cloud save:', e);
-    alert('Failed to load from cloud.');
+    showToast('Failed to load from cloud.');
   }
 }
 
@@ -166,14 +166,14 @@ function closeSaveModal(e) {
 
 function saveNew() {
   const name = document.getElementById('newSaveName').value.trim();
-  if (!name) { alert('Enter a name for this save'); return; }
+  if (!name) { showToast('Enter a name for this save'); return; }
   const saves = getSaves();
   saves[name] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
   currentSaveName = name;
   pushSaveToCloud(name, state);
   closeSaveModal();
-  alert('Saved!');
+  showToast('Saved!');
 }
 
 function loadSave(name) {

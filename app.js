@@ -1,4 +1,15 @@
 
+// ====== TOAST ======
+// In-app notification — replaces browser alert() calls
+let toastTimer;
+function showToast(msg, duration = 2000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+}
+
 // ====== STATE ======
 // state.info    — inspection metadata (name, date, location, seller, etc.)
 // state.checks  — per-item check status keyed by "sectionId_itemIndex"
@@ -656,11 +667,11 @@ function exportSummary() {
 }
 
 function copyText(text) {
-  navigator.clipboard.writeText(text).then(() => alert('Summary copied to clipboard!')).catch(() => {
+  navigator.clipboard.writeText(text).then(() => showToast('Summary copied to clipboard!')).catch(() => {
     const ta = document.createElement('textarea');
     ta.value = text; document.body.appendChild(ta); ta.select();
     document.execCommand('copy'); document.body.removeChild(ta);
-    alert('Summary copied to clipboard!');
+    showToast('Summary copied to clipboard!');
   });
 }
 

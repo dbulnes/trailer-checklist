@@ -321,6 +321,17 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 }
 .conflict-banner.visible { display: block; }
 .conflict-banner-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Toast notifications */
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--surface2); color: var(--text); border: 1px solid var(--accent);
+  padding: 10px 20px; border-radius: 20px; font-size: .85rem; font-family: inherit;
+  opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; z-index: 2000;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.warn { border-color: var(--warn); }
 </style>
 </head>
 <body>
@@ -471,6 +482,8 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
   <button class="nav-btn active" onclick="switchView('checklist',this)"><span class="nav-icon">✅</span>Checklist</button>
   <button class="nav-btn" onclick="switchView('summary',this)"><span class="nav-icon">📋</span>Summary</button>
 </div>
+
+<div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="checklist-data.js"></script>
