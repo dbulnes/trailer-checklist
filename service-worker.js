@@ -3,14 +3,14 @@
  *
  * Caching strategies:
  *   - App assets (index.html, manifest.json): cache-first, fallback to network
- *   - CDN scripts (Supabase JS client): network-first, fallback to cache
+ *   - CDN scripts (Supabase JS, barcode polyfill): network-first, fallback to cache
  *   - Supabase API calls: network-only, never cached
  *
  * Bump CACHE_NAME whenever you change index.html or manifest.json so that
  * returning users pick up the new version instead of seeing stale cache.
  */
-const CACHE_NAME = 'rv-inspect-v4';
-const ASSETS = ['./index.html', './manifest.json', './app.js'];
+const CACHE_NAME = 'rv-inspect-v7';
+const ASSETS = ['./index.html', './manifest.json', './checklist-data.js', './app.js', './cloud.js'];
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 
 self.addEventListener('install', e => {

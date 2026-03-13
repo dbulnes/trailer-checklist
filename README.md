@@ -6,8 +6,8 @@ A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspecti
 
 - **23 inspection sections** covering exterior, interior, plumbing, electrical, propane, appliances, and more
 - **Custom checklist name** — name each inspection (e.g. "2021 Micro Minnie 1708FB")
-- **Photo attachments** — attach photos to any checklist item via camera or gallery, stored in IndexedDB
-- **VIN barcode scanner** — scan the VIN barcode with your phone camera (uses BarcodeDetector API)
+- **Photo attachments** — attach photos to any checklist item via camera or gallery, synced to Supabase Storage
+- **VIN barcode scanner** — scan the VIN barcode with your phone camera (works on iOS and Android)
 - **Tap to cycle** each item: unchecked → ✓ pass → ✗ issue → — N/A
 - **Notes and measurements** on any item (temperatures, voltages, tire pressures, etc.)
 - **Auto-save** — progress saves automatically to your device and to the current named save
@@ -71,16 +71,28 @@ create trigger inspections_updated_at
   for each row execute function update_updated_at();
 ```
 
-3. In Supabase **Authentication > Settings**, make sure Email auth is enabled (magic link is on by default)
-4. In Supabase **Authentication > URL Configuration**:
+3. **(Optional — for photo sync)** Run this to create the storage bucket for inspection photos:
+
+```sql
+-- Create a private storage bucket for inspection photos
+insert into storage.buckets (id, name, public) values ('inspection-photos', 'inspection-photos', false);
+
+-- RLS: users can only access photos in their own folder
+create policy "Users manage own photos" on storage.objects
+  for all using (bucket_id = 'inspection-photos' and auth.uid()::text = (storage.foldername(name))[1])
+  with check (bucket_id = 'inspection-photos' and auth.uid()::text = (storage.foldername(name))[1]);
+```
+
+4. In Supabase **Authentication > Settings**, make sure Email auth is enabled (magic link is on by default)
+5. In Supabase **Authentication > URL Configuration**:
    - Set **Site URL** to your app URL (e.g. `https://yourusername.github.io/trailer-checklist/`)
    - Add the same URL to **Redirect URLs**
    - For local dev, also add `http://localhost:8080` to Redirect URLs
-5. Open the app, tap the **☁️ button**, expand **Supabase Setup**, and enter:
+6. Open the app, tap the **☁️ button**, expand **Supabase Setup**, and enter:
    - Your **Project URL** (e.g. `https://xyz.supabase.co`) — found in Settings > API
    - Your **Publishable key** (starts with `sb_publishable_...`) — found in Settings > API
-6. Click **Connect**, then sign in with your email via magic link
-7. Click the magic link in your email — you'll be redirected back to the app and signed in automatically
+7. Click **Connect**, then sign in with your email via magic link
+8. Click the magic link in your email — you'll be redirected back to the app and signed in automatically
 
 Your inspections will now sync across any device where you sign in.
 
@@ -88,6 +100,7 @@ Your inspections will now sync across any device where you sign in.
 
 - **Offline-first**: localStorage is always the primary store. Cloud sync is a secondary layer.
 - **Auto-sync**: Changes are debounced and pushed to Supabase every 2 seconds when online.
+- **Photo sync**: Photos are uploaded to a Supabase Storage bucket (`inspection-photos`) on capture, and downloaded when loading a save from another device.
 - **Conflict detection**: If the cloud has a newer version (e.g. from another device), you'll be prompted to load it or keep your local version.
 - **Named saves**: All named saves sync bidirectionally between local and cloud. The save/load modal shows both local and cloud-only saves, with a ☁️ badge on saves that exist in both.
 - **Loading cloud saves**: Cloud-only inspections (e.g. from another device) appear in the save/load modal under "Cloud Only" and can be loaded with one tap.

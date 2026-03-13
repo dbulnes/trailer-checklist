@@ -1,348 +1,3 @@
-// ====== CHECKLIST DATA ======
-// Each section has: id (unique key), title, icon, optional priority flag, and items[].
-// Items can be plain strings or objects with {text, critical, input, inputLabel}.
-const SECTIONS = [
-  {
-    id: 'ext_body', title: 'Fiberglass Body & Structure', icon: '🏠',
-    items: [
-      'Check entire exterior for delamination (bulges/bubbles)',
-      'Inspect all seams and joints for proper caulking',
-      'Examine for cracks, dents, or stress fractures',
-      'Look for paint fading or discoloration',
-      'Check corners and edges for separation',
-      {text: 'CRITICAL: Check for any signs of roof leaks (common issue)', critical: true}
-    ]
-  },
-  {
-    id: 'roof', title: 'Roof System', icon: '🔝', priority: true,
-    items: [
-      'Inspect entire roof membrane for cracks, tears, or punctures',
-      'Check all roof penetrations (vents, AC, antenna) for proper sealing',
-      'Verify condition of roof-mounted AC unit',
-      'Look for soft spots or sponginess (water intrusion)',
-      'Check rubber roof material condition',
-      'Inspect roof ladder mounting points'
-    ]
-  },
-  {
-    id: 'windows_doors', title: 'Windows & Doors', icon: '🪟',
-    items: [
-      'Test all windows open/close smoothly',
-      'Check all window seals and weatherstripping',
-      'Verify window latches and locks function',
-      'Note: Windows are single-pane (less insulation)',
-      'Check bedroom window crank (prone to failure)',
-      'Verify entry door seal is intact',
-      'Test door locks, latches, and deadbolt',
-      'Check door alignment',
-      'Inspect screen door and latch'
-    ]
-  },
-  {
-    id: 'tires', title: 'Tires & Wheels', icon: '🛞',
-    items: [
-      {text: 'Tire 1 DOT date / Condition', input: true, inputLabel: 'DOT date & condition'},
-      {text: 'Tire 2 DOT date / Condition', input: true, inputLabel: 'DOT date & condition'},
-      'Check for uneven wear, dry rot, sidewall cracks',
-      {text: 'Verify tire pressure', input: true, inputLabel: 'L: ___ psi  R: ___ psi'},
-      'Check tread depth (min 4/32")',
-      'Inspect wheel bearings for play',
-      'Check lug nuts for proper torque',
-      'Examine brakes and pads',
-      'Test electric brake connection'
-    ]
-  },
-  {
-    id: 'frame', title: 'Frame & Undercarriage', icon: '🔩',
-    items: [
-      'Inspect frame rails for rust or corrosion',
-      'Check axles for alignment and damage',
-      'Examine suspension components',
-      'Check hitch and tongue area structure',
-      'Test all four stabilizer jacks',
-      'Test electric tongue jack operation',
-      'Check battery box mounting',
-      'Inspect underbelly liner for holes or tears',
-      'Verify all mounting hardware secure'
-    ]
-  },
-  {
-    id: 'hitch', title: 'Hitch & Towing Components', icon: '🔗',
-    items: [
-      'Inspect hitch coupler (2-5/16" ball)',
-      'Test coupler latch mechanism',
-      'Check safety chains and mounting points',
-      'Test breakaway switch and cable',
-      'Test brake lights',
-      'Test turn signals (left and right)',
-      'Test running lights',
-      'Test reverse lights',
-      'Test 7-pin connector with tow vehicle'
-    ]
-  },
-  {
-    id: 'awning', title: 'Awning System', icon: '⛱️',
-    items: [
-      'Fully extend awning - operates smoothly',
-      'Check fabric for tears, mildew, fading',
-      'Test LED lighting in awning',
-      'Test awning motor and controller',
-      'Check awning wiring cover (prone to falling off)',
-      'Verify mounting hardware secure',
-      'Check arms extend and lock properly',
-      'Test wind sensor if equipped'
-    ]
-  },
-  {
-    id: 'storage', title: 'Storage Compartments', icon: '📦',
-    items: [
-      'Open and test all exterior compartment latches',
-      'Check for water stains or rust inside',
-      'Verify doors seal properly',
-      'Check hinges and gas struts',
-      'Check propane compartment ventilation',
-      'Test outdoor shower hose',
-      'Check dump valve access'
-    ]
-  },
-  {
-    id: 'water_damage', title: 'Water Damage (Interior)', icon: '💧', priority: true,
-    items: [
-      {text: 'CRITICAL: Inspect entire ceiling for stains/soft spots', critical: true},
-      'Check walls around all windows for moisture',
-      {text: 'CRITICAL: Press floor throughout - check for soft spots', critical: true},
-      'Look under dinette for sawdust (moisture damage)',
-      'Look under bed for sawdust',
-      'Check all corners and seams for separation',
-      'Check cabinetry for water damage or swelling',
-      'Check walls for proper attachment',
-      {text: 'Moisture meter reading (if available)', input: true, inputLabel: 'Reading'}
-    ]
-  },
-  {
-    id: 'plumbing', title: 'Plumbing System', icon: '🚿',
-    items: [
-      'Check under kitchen sink - plumbing connections (common factory defect)',
-      'Check under bathroom sink - plumbing connections',
-      'Look for sawdust around sink plumbing',
-      'Test kitchen sink faucet hot and cold',
-      'Check kitchen faucet nozzle (prone to breakage)',
-      'Test bathroom sink faucet hot and cold',
-      'Check bathroom hot water knob (plastic, prone to breaking)',
-      'Test shower on/off valve (common failure point)',
-      'Turn on water pump - listen for proper operation',
-      'Check for leaks while pump running',
-      'Verify pump cycles and builds pressure',
-      'Test city water connection',
-      'Test outdoor shower',
-      'Test toilet flush mechanism',
-      'Check toilet hoses (proper length, not bent/kinked)'
-    ]
-  },
-  {
-    id: 'water_heater', title: 'Water Heater System', icon: '🔥',
-    items: [
-      'Access panel under bathroom sink',
-      'Check wiring connections secure (often loose from factory)',
-      'Test main inlet valve (common failure)',
-      'Test electric mode (120V) - heats properly',
-      'Test propane mode - ignites and heats',
-      {text: 'Check water temperature reaches 120-140°F', input: true, inputLabel: 'Temp °F'},
-      'Check for leaks around tank and connections',
-      'Check relief valve condition',
-      'Test bypass valve operation'
-    ]
-  },
-  {
-    id: 'tanks', title: 'Tank Systems', icon: '🪣',
-    items: [
-      'Test black tank valve (known to bind/fail)',
-      'Test gray tank valve',
-      'Check protective liner underneath',
-      'Test tank sensors (if equipped)',
-      'Check dump hose condition',
-      'Check tank vent pipes on roof',
-      'Look for leaks or staining around tanks'
-    ]
-  },
-  {
-    id: 'kitchen', title: 'Kitchen Appliances', icon: '🍳',
-    items: [
-      'Test refrigerator on electric mode (common cooling issues)',
-      'Test refrigerator on propane mode',
-      {text: 'Wait 2-4 hours - check temperature', input: true, inputLabel: 'Temp °F'},
-      'Check refrigerator door seals and latches',
-      'Check freezer cools adequately',
-      'Test stove burner 1 on propane',
-      'Test stove burner 2 on propane',
-      'Test stove burner 3 on propane',
-      'Check propane regulator (consistent flame)',
-      'Test oven operation and temperature',
-      'Test oven vent fan (fan blade secure on spindle)',
-      'Test microwave/convection oven',
-      'Check microwave door latch (opens while driving issue)',
-      'Test range hood fan and light',
-      'Test all kitchen cabinet/drawer mechanisms'
-    ]
-  },
-  {
-    id: 'climate', title: 'Climate Control', icon: '❄️',
-    items: [
-      'Test furnace on propane (inconsistency issues reported)',
-      'Verify furnace ignites reliably',
-      'Check airflow from all vents',
-      'Run AC unit - verify cooling (13,500 BTU)',
-      {text: 'Let AC run 15-20 min - temp drop', input: true, inputLabel: 'Temp drop °F'},
-      'Listen for unusual AC noises',
-      'Test all roof vents open/close',
-      'Test fantastic fan (if equipped)',
-      'Check all vent screens intact'
-    ]
-  },
-  {
-    id: 'electrical', title: 'Electrical System', icon: '⚡',
-    items: [
-      'Test ALL outlets with circuit tester (common power issues)',
-      {text: 'Kitchen outlets', input: true, inputLabel: 'Status'},
-      {text: 'Bathroom outlets', input: true, inputLabel: 'Status'},
-      {text: 'Bedroom outlets', input: true, inputLabel: 'Status'},
-      {text: 'Living area outlets', input: true, inputLabel: 'Status'},
-      'Test converter/charger operation',
-      'Test GFCI outlets and reset buttons',
-      'Test all interior lights (LED flickering common)',
-      'Test bathroom light specifically (frequent flickering)',
-      'Verify 12V system functions',
-      'Verify 120V system functions',
-      {text: 'Test battery charging with multimeter', input: true, inputLabel: 'Voltage'},
-      'Check battery condition and connections',
-      'Check breaker panel - no tripped breakers',
-      'Check for burnt wires or electrical smells',
-      'Test USB charging ports',
-      'Test all switches and dimmers'
-    ]
-  },
-  {
-    id: 'propane', title: 'Propane System', icon: '🔶',
-    items: [
-      'Test propane regulator at stove (pressure consistent)',
-      'Check automatic changeover valve',
-      'Inspect propane hoses (not too short or aggressively bent)',
-      'Test propane detector alarm',
-      'Check for propane smell',
-      'Test stove on propane',
-      'Test oven on propane',
-      'Test water heater on propane',
-      'Test furnace on propane',
-      'Check propane tank mounting',
-      'Check propane compartment ventilation',
-      {text: 'Propane tank 1 cert date', input: true, inputLabel: 'Date'},
-      {text: 'Propane tank 2 cert date', input: true, inputLabel: 'Date'}
-    ]
-  },
-  {
-    id: 'interior', title: 'Interior Features', icon: '🛋️',
-    items: [
-      'Test dinette table mechanisms',
-      'Check cushion condition',
-      'Open all cabinets - smooth operation',
-      'Open all drawers - smooth operation',
-      'Check pull-down shade holders (especially dinette - prone to loosening)',
-      'Check window treatment mounting',
-      'Test all cabinet latches',
-      'Test bedroom vent fan',
-      'Test TV mounting and connections',
-      'Test AV system (AM/FM/CD/DVD/USB/Bluetooth)',
-      'Inspect flooring for damage or stains',
-      'Check upholstery for tears or stains'
-    ]
-  },
-  {
-    id: 'full_electrical', title: 'Full Electrical Test', icon: '🔌',
-    items: [
-      'Connect to 30-amp shore power',
-      'Run AC + microwave + water heater simultaneously',
-      'No breakers trip under load',
-      {text: 'Check voltage at outlets (should be 110-120V)', input: true, inputLabel: 'Voltage'},
-      {text: 'Check converter output (should be 13.2-13.8V)', input: true, inputLabel: 'Voltage'},
-      'All systems maintain power'
-    ]
-  },
-  {
-    id: 'full_water', title: 'Full Water Test', icon: '💦',
-    items: [
-      'Connect to city water with pressure regulator',
-      'Turn on all faucets - consistent pressure',
-      'Water heater heats on electric',
-      'Fill fresh water tank - test pump',
-      'Run all fixtures simultaneously',
-      'Check for any leaks throughout test'
-    ]
-  },
-  {
-    id: 'full_propane', title: 'Full Propane Test', icon: '🔥',
-    items: [
-      'Open propane tanks',
-      'Test automatic changeover',
-      'Run all propane appliances together',
-      'No gas smell or hissing',
-      'Propane detector stays quiet'
-    ]
-  },
-  {
-    id: 'docs', title: 'Documentation Review', icon: '📄',
-    items: [
-      'Request maintenance records',
-      'Check warranty status (1-year limited from purchase date)',
-      'Verify clean title - no liens/salvage',
-      {text: 'VIN recall check', input: true, inputLabel: 'Results'},
-      'Ask about winterization history',
-      'Get list of modifications/repairs',
-      'Obtain owner\'s manual and appliance manuals',
-      'Review previous inspection reports (if any)'
-    ]
-  },
-  {
-    id: 'seller_q', title: 'Questions for Seller', icon: '🗣️',
-    items: [
-      {text: 'Has trailer ever leaked? Where? Repairs done?', input: true, inputLabel: 'Answer'},
-      {text: 'Any warranty claims or repairs?', input: true, inputLabel: 'Answer'},
-      {text: 'Storage method (covered/uncovered/climate-controlled)?', input: true, inputLabel: 'Answer'},
-      {text: 'Maintenance performed (roof seal, bearings, etc.)?', input: true, inputLabel: 'Answer'},
-      {text: 'Any known issues or concerns?', input: true, inputLabel: 'Answer'},
-      {text: 'Reason for selling?', input: true, inputLabel: 'Answer'},
-      {text: 'What\'s included (hoses, accessories)?', input: true, inputLabel: 'Answer'}
-    ]
-  },
-  {
-    id: 'red_flags', title: 'Red Flags - Dealbreakers', icon: '🚩', priority: true,
-    items: [
-      {text: 'Multiple roof leak locations', critical: true},
-      {text: 'Plumbing with wrong fittings', critical: true},
-      {text: 'Excessive sawdust under sinks', critical: true},
-      {text: 'Black tank valve binding', critical: true},
-      {text: 'Water heater not heating', critical: true},
-      {text: 'Multiple appliance failures', critical: true},
-      {text: 'Many broken plastic components', critical: true},
-      {text: 'Severe LED flickering throughout', critical: true},
-      {text: 'Improperly routed propane hoses', critical: true}
-    ]
-  },
-  {
-    id: 'tools', title: 'Tools Needed', icon: '🧰',
-    items: [
-      'Flashlight (bright LED)',
-      'Multimeter or circuit tester',
-      'Moisture meter (optional)',
-      'Ladder for roof access',
-      'Creeper or towel for undercarriage',
-      'Camera/smartphone for photos',
-      'This checklist',
-      'Tire pressure gauge',
-      'Level',
-      'Gloves and knee pads'
-    ]
-  }
-];
 
 // ====== STATE ======
 // state.info    — inspection metadata (name, date, location, seller, etc.)
@@ -488,8 +143,8 @@ function openPhotoDB() {
   });
 }
 
-function resizeImage(file, maxDim = 1200, quality = 0.7) {
-  return new Promise(resolve => {
+function resizeImage(file, maxDim = 800, quality = 0.6) {
+  return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -505,6 +160,7 @@ function resizeImage(file, maxDim = 1200, quality = 0.7) {
       c.getContext('2d').drawImage(img, 0, 0, width, height);
       resolve(c.toDataURL('image/jpeg', quality));
     };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
     img.src = url;
   });
 }
@@ -516,14 +172,18 @@ function capturePhoto(key) {
 
 document.getElementById('photoInput').addEventListener('change', async function() {
   if (!this.files.length || !pendingPhotoKey) return;
-  const dataUrl = await resizeImage(this.files[0]);
-  const db = await openPhotoDB();
-  // Find next index for this key
-  const photos = await getPhotosForKey(pendingPhotoKey);
-  const idx = photos.length;
-  const tx = db.transaction('photos', 'readwrite');
-  tx.objectStore('photos').put(dataUrl, `${pendingPhotoKey}_${idx}`);
-  tx.oncomplete = () => renderThumbs(pendingPhotoKey);
+  try {
+    const dataUrl = await resizeImage(this.files[0]);
+    const db = await openPhotoDB();
+    const photos = await getPhotosForKey(pendingPhotoKey);
+    const idx = photos.length;
+    const tx = db.transaction('photos', 'readwrite');
+    tx.objectStore('photos').put(dataUrl, `${pendingPhotoKey}_${idx}`);
+    tx.oncomplete = () => {
+      renderThumbs(pendingPhotoKey);
+      pushPhotoToCloud(pendingPhotoKey, idx, dataUrl);
+    };
+  } catch (e) { console.error('Photo capture error:', e); }
   this.value = '';
 });
 
@@ -582,8 +242,10 @@ async function deleteLightboxPhoto() {
   const db = await openPhotoDB();
   const tx = db.transaction('photos', 'readwrite');
   tx.objectStore('photos').delete(`${lightboxKey}_${lightboxIdx}`);
+  const delKey = lightboxKey, delIdx = lightboxIdx;
   tx.oncomplete = () => {
-    renderThumbs(lightboxKey);
+    renderThumbs(delKey);
+    deletePhotoFromCloud(delKey, delIdx);
     closeLightbox();
   };
 }
@@ -608,22 +270,140 @@ async function loadAllThumbs() {
   };
 }
 
+// ====== PHOTO CLOUD SYNC (Supabase Storage) ======
+// Photos are uploaded to a Supabase Storage bucket named "inspection-photos".
+// Path convention: {user_id}/{inspection_name}/{item_key}_{photo_index}.jpg
+// IndexedDB remains the local cache; cloud sync happens in the background.
+// Data URLs are converted to Blobs for upload and back for download.
+
+function photoStoragePath(itemKey, idx) {
+  const inspectionName = encodeURIComponent(currentSaveName || '__autosave__');
+  return `${currentUser.id}/${inspectionName}/${itemKey}_${idx}.jpg`;
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, b64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function pushPhotoToCloud(itemKey, idx, dataUrl) {
+  if (!supabaseClient || !currentUser) return;
+  try {
+    const path = photoStoragePath(itemKey, idx);
+    const blob = dataUrlToBlob(dataUrl);
+    const { error } = await supabaseClient.storage
+      .from('inspection-photos')
+      .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    if (error) throw error;
+  } catch (e) { console.error('Photo upload error:', e); }
+}
+
+async function deletePhotoFromCloud(itemKey, idx) {
+  if (!supabaseClient || !currentUser) return;
+  try {
+    const path = photoStoragePath(itemKey, idx);
+    await supabaseClient.storage.from('inspection-photos').remove([path]);
+  } catch (e) { console.error('Photo cloud delete error:', e); }
+}
+
+async function pullPhotosFromCloud() {
+  if (!supabaseClient || !currentUser) return;
+  const inspectionName = encodeURIComponent(currentSaveName || '__autosave__');
+  const folder = `${currentUser.id}/${inspectionName}`;
+  try {
+    const { data: files, error } = await supabaseClient.storage
+      .from('inspection-photos').list(folder);
+    if (error) throw error;
+    if (!files || files.length === 0) return;
+
+    const db = await openPhotoDB();
+    const keysToRender = new Set();
+    for (const file of files) {
+      // Parse filename: {item_key}_{photo_index}.jpg
+      const name = file.name.replace(/\.jpg$/, '');
+      const parts = name.split('_');
+      const idx = parseInt(parts.pop());
+      const itemKey = parts.join('_');
+      const dbKey = `${itemKey}_${idx}`;
+
+      // Skip if already cached locally
+      const existing = await new Promise(r => {
+        const tx = db.transaction('photos', 'readonly');
+        const req = tx.objectStore('photos').get(dbKey);
+        req.onsuccess = () => r(req.result);
+        req.onerror = () => r(null);
+      });
+      if (existing) continue;
+
+      // Download and cache
+      const { data: blob, error: dlErr } = await supabaseClient.storage
+        .from('inspection-photos').download(`${folder}/${file.name}`);
+      if (dlErr || !blob) continue;
+      const dataUrl = await new Promise(r => {
+        const reader = new FileReader();
+        reader.onload = () => r(reader.result);
+        reader.readAsDataURL(blob);
+      });
+      const tx = db.transaction('photos', 'readwrite');
+      tx.objectStore('photos').put(dataUrl, dbKey);
+      keysToRender.add(itemKey);
+    }
+    keysToRender.forEach(k => renderThumbs(k));
+  } catch (e) { console.error('Photo cloud pull error:', e); }
+}
+
+async function pushAllPhotosToCloud() {
+  if (!supabaseClient || !currentUser) return;
+  const db = await openPhotoDB();
+  const tx = db.transaction('photos', 'readonly');
+  const req = tx.objectStore('photos').openCursor();
+  req.onsuccess = e => {
+    const cursor = e.target.result;
+    if (cursor) {
+      const parts = cursor.key.split('_');
+      const idx = parseInt(parts.pop());
+      const itemKey = parts.join('_');
+      pushPhotoToCloud(itemKey, idx, cursor.value);
+      cursor.continue();
+    }
+  };
+}
+
 // ====== VIN BARCODE SCANNER ======
-// Uses the BarcodeDetector API (Chrome 83+, Safari 17.2+) to read VIN barcodes
-// (Code 39 or Code 128) from the device camera. Falls back to manual entry.
+// Uses the BarcodeDetector API to read VIN barcodes (Code 39 / Code 128) from
+// the device camera. On browsers without native support (iOS Safari/Chrome),
+// a WASM-based polyfill is loaded on demand from CDN (~200KB, cached by SW).
 let scannerStream = null;
 let scannerAnimFrame = null;
 
-async function startVinScan() {
-  if (!('BarcodeDetector' in window)) {
-    alert('Barcode scanning is not supported in this browser. Please enter the VIN manually.');
-    return;
+async function ensureBarcodeDetector() {
+  if ('BarcodeDetector' in window) return true;
+  const status = document.getElementById('scannerStatus');
+  if (status) status.textContent = 'Loading barcode scanner...';
+  try {
+    await import('https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/polyfill.min.js');
+    return 'BarcodeDetector' in window;
+  } catch (e) {
+    return false;
   }
+}
+
+async function startVinScan() {
   const overlay = document.getElementById('scannerOverlay');
   const video = document.getElementById('scannerVideo');
   const status = document.getElementById('scannerStatus');
   overlay.classList.add('show');
-  status.textContent = 'Starting camera...';
+  status.textContent = 'Loading scanner...';
+
+  if (!(await ensureBarcodeDetector())) {
+    status.textContent = 'Barcode scanning not available. Please enter VIN manually.';
+    setTimeout(() => stopVinScan(), 2000);
+    return;
+  }
 
   try {
     scannerStream = await navigator.mediaDevices.getUserMedia({
@@ -722,7 +502,7 @@ function updateAppTitle() {
 
 function loadInfoFields() {
   document.querySelectorAll('[data-info]').forEach(el => {
-    if (state.info[el.dataset.info]) el.value = state.info[el.dataset.info];
+    el.value = state.info[el.dataset.info] || '';
   });
   updateAppTitle();
 }
@@ -897,548 +677,3 @@ function switchView(view, btn) {
   if (view === 'summary') buildSummary();
 }
 
-// ====== SAVE / LOAD ======
-// localStorage keys:
-//   rv_inspect_autosave — auto-saved state (updated on every change)
-//   rv_inspect_saves    — { "name": { data: state, ts: timestamp }, ... }
-// Named saves can be created, loaded, and deleted from the save modal.
-// When a named save is loaded or created, currentSaveName is set so that
-// subsequent auto-saves also update that named save automatically.
-const STORAGE_KEY = 'rv_inspect_saves';
-const AUTOSAVE_KEY = 'rv_inspect_autosave';
-
-function autoSave() {
-  localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
-  // If working on a named save, keep it updated too
-  if (currentSaveName) {
-    const saves = getSaves();
-    saves[currentSaveName] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-  }
-  debouncedCloudSync();
-}
-
-function autoLoad() {
-  const data = localStorage.getItem(AUTOSAVE_KEY);
-  if (data) {
-    try { state = JSON.parse(data); } catch(e) {}
-  }
-}
-
-function getSaves() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
-}
-
-function showSaveModal() {
-  const saves = getSaves();
-  const slotsEl = document.getElementById('saveSlots');
-  const keys = Object.keys(saves).sort((a,b) => (saves[b].ts || 0) - (saves[a].ts || 0));
-
-  let html = '';
-  if (keys.length === 0) {
-    html = '<p style="color:var(--text2);font-size:.85rem;padding:8px 0">No saved inspections yet.</p>';
-  } else {
-    html = '<p style="font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Local Saves</p>';
-    html += keys.map(k => {
-      const s = saves[k];
-      const d = s.ts ? new Date(s.ts).toLocaleString() : 'Unknown date';
-      const safeName = escHtml(k).replace(/'/g, "\\'");
-      return `
-        <div class="save-slot">
-          <div class="save-slot-name">${escHtml(k)}</div>
-          <div class="save-slot-date">${d}</div>
-          <div class="save-slot-actions">
-            <button class="save-slot-btn" onclick="loadSave('${safeName}')">Load</button>
-            <button class="save-slot-btn delete" onclick="deleteSave('${safeName}')">Delete</button>
-          </div>
-        </div>`;
-    }).join('');
-  }
-
-  slotsEl.innerHTML = html + '<div id="cloudSaveSlots"></div>';
-  const suggestedName = state.info.name || (state.info.location ? `${state.info.location} - ${state.info.date || 'Inspection'}` : '');
-  document.getElementById('newSaveName').value = suggestedName;
-  document.getElementById('saveModal').classList.add('show');
-
-  // Fetch cloud saves
-  loadCloudSavesIntoModal(keys);
-}
-
-async function loadCloudSavesIntoModal(localKeys) {
-  const container = document.getElementById('cloudSaveSlots');
-  if (!supabaseClient || !currentUser) return;
-
-  container.innerHTML = '<p style="font-size:.75rem;color:var(--text2);padding:8px 0">Loading cloud saves...</p>';
-  try {
-    const { data, error } = await supabaseClient.from('inspections')
-      .select('name,state,updated_at')
-      .eq('user_id', currentUser.id)
-      .neq('name', '__autosave__')
-      .order('updated_at', { ascending: false });
-
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      container.innerHTML = '';
-      return;
-    }
-
-    // Find cloud-only saves (not in local)
-    const cloudOnly = data.filter(d => !localKeys.includes(d.name));
-    // Find saves that exist in both (show cloud badge)
-    const synced = data.filter(d => localKeys.includes(d.name));
-
-    let html = '';
-
-    // Add cloud badge to synced local saves
-    if (synced.length > 0) {
-      synced.forEach(s => {
-        const slot = document.querySelector(`[onclick*="loadSave('${escHtml(s.name).replace(/'/g, "\\'")}')"]`);
-        if (slot) {
-          const nameEl = slot.closest('.save-slot')?.querySelector('.save-slot-name');
-          if (nameEl && !nameEl.querySelector('.cloud-badge')) {
-            nameEl.insertAdjacentHTML('afterbegin', '<span style="font-size:.6rem;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;margin-right:6px;vertical-align:middle">☁️</span>');
-          }
-        }
-      });
-    }
-
-    if (cloudOnly.length > 0) {
-      html += '<p style="font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px">☁️ Cloud Only</p>';
-      html += cloudOnly.map(cs => {
-        const d = new Date(cs.updated_at).toLocaleString();
-        const safeName = escHtml(cs.name).replace(/'/g, "\\'");
-        return `
-          <div class="save-slot" style="border-color:#2a3a5a">
-            <div class="save-slot-name">${escHtml(cs.name)}</div>
-            <div class="save-slot-date">${d}</div>
-            <div class="save-slot-actions">
-              <button class="save-slot-btn" onclick="loadCloudSave('${safeName}')">Load</button>
-              <button class="save-slot-btn delete" onclick="deleteCloudOnlySave('${safeName}')">Delete</button>
-            </div>
-          </div>`;
-      }).join('');
-    }
-
-    container.innerHTML = html;
-  } catch (e) {
-    console.error('Failed to load cloud saves:', e);
-    container.innerHTML = '<p style="font-size:.75rem;color:var(--warn);padding:8px 0">Failed to load cloud saves.</p>';
-  }
-}
-
-async function loadCloudSave(name) {
-  if (!supabaseClient || !currentUser) return;
-  if (!confirm(`Load "${name}" from cloud? Current unsaved progress will be lost.`)) return;
-  try {
-    const { data, error } = await supabaseClient.from('inspections')
-      .select('state').eq('user_id', currentUser.id).eq('name', name).single();
-    if (error) throw error;
-    state = data.state;
-    currentSaveName = name;
-    autoSaveLocal();
-    // Also save to local named saves
-    const saves = getSaves();
-    saves[name] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-    renderSections();
-    loadInfoFields();
-    SECTIONS.forEach(s => updateBadge(s.id));
-    closeSaveModal();
-  } catch (e) {
-    console.error('Failed to load cloud save:', e);
-    alert('Failed to load from cloud.');
-  }
-}
-
-async function deleteCloudOnlySave(name) {
-  if (!confirm(`Delete "${name}" from cloud?`)) return;
-  await deleteSaveFromCloud(name);
-  showSaveModal();
-}
-
-function closeSaveModal(e) {
-  if (!e || e.target === e.currentTarget) {
-    document.getElementById('saveModal').classList.remove('show');
-  }
-}
-
-function saveNew() {
-  const name = document.getElementById('newSaveName').value.trim();
-  if (!name) { alert('Enter a name for this save'); return; }
-  const saves = getSaves();
-  saves[name] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-  currentSaveName = name;
-  pushSaveToCloud(name, state);
-  closeSaveModal();
-  alert('Saved!');
-}
-
-function loadSave(name) {
-  if (!confirm(`Load "${name}"? Current unsaved progress will be lost.`)) return;
-  const saves = getSaves();
-  if (saves[name]) {
-    state = JSON.parse(JSON.stringify(saves[name].data));
-    currentSaveName = name;
-    autoSave();
-    renderSections();
-    loadInfoFields();
-    SECTIONS.forEach(s => updateBadge(s.id));
-    closeSaveModal();
-  }
-}
-
-function deleteSave(name) {
-  if (!confirm(`Delete "${name}"?`)) return;
-  const saves = getSaves();
-  delete saves[name];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-  deleteSaveFromCloud(name);
-  showSaveModal();
-}
-
-function resetAll() {
-  if (!confirm('Reset all progress?')) return;
-  state = { info: {}, checks: {}, notes: {}, inputs: {}, summary: {} };
-  currentSaveName = null;
-  autoSave();
-  renderSections();
-  loadInfoFields();
-}
-
-// ====== CLOUD SYNC (SUPABASE) ======
-// Offline-first: localStorage is always the source of truth. Supabase is optional.
-// BYO model — users provide their own Supabase project URL and publishable key.
-// Auth uses email magic links. State is stored as JSONB in an "inspections" table,
-// one row per named save per user. Auto-save uses the reserved name "__autosave__".
-// Changes are debounced (2s) before pushing to cloud. On load, cloud and local
-// are reconciled with conflict detection (newer version wins, user chooses).
-const BYO_CONFIG_KEY = 'rv_inspect_supabase';
-let supabaseClient = null;
-let currentUser = null;
-let cloudSyncTimer = null;
-let lastSyncTime = null;
-let pendingCloudAutosave = null;
-
-function loadBYOConfig() {
-  try { return JSON.parse(localStorage.getItem(BYO_CONFIG_KEY)); } catch { return null; }
-}
-
-function saveBYOConfig() {
-  const url = document.getElementById('byoUrl').value.trim();
-  const key = document.getElementById('byoKey').value.trim();
-  const msgEl = document.getElementById('byoMsg');
-  if (!url || !key) {
-    showCloudMsg(msgEl, 'Please enter both URL and publishable key.', true);
-    return;
-  }
-  if (!url.includes('supabase')) {
-    showCloudMsg(msgEl, 'URL should be a Supabase project URL.', true);
-    return;
-  }
-  localStorage.setItem(BYO_CONFIG_KEY, JSON.stringify({ url, key }));
-  showCloudMsg(msgEl, 'Saved! Connecting...', false);
-  initSupabase();
-}
-
-function disconnectSupabase() {
-  if (!confirm('Disconnect from Supabase? Local data will be kept.')) return;
-  localStorage.removeItem(BYO_CONFIG_KEY);
-  supabaseClient = null;
-  currentUser = null;
-  updateCloudUI();
-  closeCloudModal();
-}
-
-function initSupabase() {
-  const config = loadBYOConfig();
-  if (!config) { updateCloudUI(); return; }
-  try {
-    supabaseClient = window.supabase.createClient(config.url, config.key);
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      currentUser = session?.user || null;
-      updateCloudUI();
-      if (currentUser) reconcileOnLoad();
-    });
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      currentUser = session?.user || null;
-      updateCloudUI();
-      if (currentUser) reconcileOnLoad();
-    });
-    ensureTable();
-  } catch (e) {
-    console.error('Supabase init failed:', e);
-    supabaseClient = null;
-    updateCloudUI();
-  }
-}
-
-async function ensureTable() {
-  if (!supabaseClient) return;
-  // Try a lightweight query; if table doesn't exist, create it via rpc
-  const { error } = await supabaseClient.from('inspections').select('id').limit(1);
-  if (error && error.code === '42P01') {
-    // Table doesn't exist — guide user to create it
-    const msgEl = document.getElementById('byoMsg');
-    showCloudMsg(msgEl, 'Table "inspections" not found. Please run the SQL migration in your Supabase SQL Editor. See README for the schema.', true);
-  }
-}
-
-// Auth
-function sendMagicLink() {
-  if (!supabaseClient) {
-    const msgEl = document.getElementById('magicLinkMsg');
-    showCloudMsg(msgEl, 'Connect your Supabase project first (see setup below).', true);
-    return;
-  }
-  const email = document.getElementById('magicLinkEmail').value.trim();
-  const msgEl = document.getElementById('magicLinkMsg');
-  if (!email) { showCloudMsg(msgEl, 'Enter your email address.', true); return; }
-
-  const redirectUrl = window.location.href.split('#')[0].split('?')[0];
-  supabaseClient.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectUrl } })
-    .then(({ error }) => {
-      if (error) showCloudMsg(msgEl, error.message, true);
-      else showCloudMsg(msgEl, 'Check your email for the magic link!', false);
-    });
-}
-
-function signOut() {
-  if (!supabaseClient) return;
-  supabaseClient.auth.signOut().then(() => {
-    currentUser = null;
-    updateCloudUI();
-  });
-}
-
-// UI
-function showCloudModal() {
-  const config = loadBYOConfig();
-  if (config) {
-    document.getElementById('byoUrl').value = config.url;
-    document.getElementById('byoKey').value = config.key;
-  }
-  document.getElementById('cloudModal').classList.add('show');
-  updateCloudUI();
-}
-
-function closeCloudModal(e) {
-  if (!e || e.target === e.currentTarget) {
-    document.getElementById('cloudModal').classList.remove('show');
-  }
-}
-
-function showCloudMsg(el, msg, isError) {
-  el.textContent = msg;
-  el.className = 'cloud-msg visible' + (isError ? ' error' : '');
-}
-
-function updateCloudUI() {
-  const loggedIn = document.getElementById('cloudLoggedIn');
-  const loggedOut = document.getElementById('cloudLoggedOut');
-  const dot = document.getElementById('syncDot');
-
-  if (currentUser) {
-    loggedIn.style.display = 'block';
-    loggedOut.style.display = 'none';
-    document.getElementById('cloudUserEmail').textContent = currentUser.email;
-    if (lastSyncTime) {
-      document.getElementById('cloudSyncStatus').textContent = 'Last synced: ' + new Date(lastSyncTime).toLocaleString();
-    }
-  } else {
-    loggedIn.style.display = 'none';
-    loggedOut.style.display = 'block';
-  }
-
-  if (!supabaseClient) { dot.className = 'sync-dot'; }
-  else if (!currentUser) { dot.className = 'sync-dot'; }
-}
-
-function setSyncStatus(status) {
-  const dot = document.getElementById('syncDot');
-  dot.className = 'sync-dot ' + status;
-}
-
-// Sync
-let debounceTimer = null;
-function debouncedCloudSync() {
-  if (!supabaseClient || !currentUser) return;
-  clearTimeout(debounceTimer);
-  setSyncStatus('pending');
-  debounceTimer = setTimeout(() => cloudSync(), 2000);
-}
-
-async function cloudSync() {
-  if (!supabaseClient || !currentUser) return;
-  setSyncStatus('syncing');
-  try {
-    const { error } = await supabaseClient.from('inspections').upsert({
-      user_id: currentUser.id,
-      name: '__autosave__',
-      state: state
-    }, { onConflict: 'user_id,name' });
-    if (error) throw error;
-    // Also sync the current named save to cloud
-    if (currentSaveName) {
-      await pushSaveToCloud(currentSaveName, state);
-    }
-    lastSyncTime = Date.now();
-    setSyncStatus('synced');
-    updateCloudUI();
-  } catch (e) {
-    console.error('Cloud sync error:', e);
-    setSyncStatus('error');
-  }
-}
-
-function cloudSyncNow() {
-  cloudSync();
-  // Also sync all named saves
-  const saves = getSaves();
-  for (const [name, save] of Object.entries(saves)) {
-    pushSaveToCloud(name, save.data);
-  }
-}
-
-async function pushSaveToCloud(name, data) {
-  if (!supabaseClient || !currentUser) return;
-  try {
-    await supabaseClient.from('inspections').upsert({
-      user_id: currentUser.id,
-      name: name,
-      state: data
-    }, { onConflict: 'user_id,name' });
-  } catch (e) { console.error('Cloud push error:', e); }
-}
-
-async function deleteSaveFromCloud(name) {
-  if (!supabaseClient || !currentUser) return;
-  try {
-    await supabaseClient.from('inspections').delete()
-      .eq('user_id', currentUser.id).eq('name', name);
-  } catch (e) { console.error('Cloud delete error:', e); }
-}
-
-async function reconcileOnLoad() {
-  if (!supabaseClient || !currentUser) return;
-  try {
-    // Check cloud autosave
-    const { data: cloudAuto } = await supabaseClient.from('inspections')
-      .select('state,updated_at').eq('user_id', currentUser.id).eq('name', '__autosave__').single();
-
-    if (cloudAuto) {
-      const cloudTs = new Date(cloudAuto.updated_at).getTime();
-      const localTs = (() => {
-        try {
-          const raw = localStorage.getItem(AUTOSAVE_KEY);
-          if (!raw) return 0;
-          // We don't store a timestamp in autosave, so compare with last known sync
-          return lastSyncTime || 0;
-        } catch { return 0; }
-      })();
-
-      // If we've never synced (fresh device), or cloud is newer, offer to load
-      const localHasData = Object.keys(state.checks).length > 0;
-      if (!lastSyncTime && localHasData && Object.keys(cloudAuto.state?.checks || {}).length > 0) {
-        // Both have data, show conflict
-        pendingCloudAutosave = cloudAuto.state;
-        document.getElementById('conflictBanner').classList.add('visible');
-      } else if (!localHasData && Object.keys(cloudAuto.state?.checks || {}).length > 0) {
-        // Local is empty, just load cloud
-        state = cloudAuto.state;
-        autoSaveLocal();
-        renderSections();
-        loadInfoFields();
-        SECTIONS.forEach(s => updateBadge(s.id));
-      }
-    }
-
-    // Sync named saves from cloud to local
-    const { data: cloudSaves } = await supabaseClient.from('inspections')
-      .select('name,state,updated_at').eq('user_id', currentUser.id).neq('name', '__autosave__');
-
-    if (cloudSaves && cloudSaves.length > 0) {
-      const localSaves = getSaves();
-      let updated = false;
-      for (const cs of cloudSaves) {
-        if (!localSaves[cs.name]) {
-          localSaves[cs.name] = { data: cs.state, ts: new Date(cs.updated_at).getTime() };
-          updated = true;
-        }
-      }
-      // Push local-only saves to cloud
-      for (const [name, save] of Object.entries(localSaves)) {
-        if (!cloudSaves.find(cs => cs.name === name)) {
-          pushSaveToCloud(name, save.data);
-        }
-      }
-      if (updated) localStorage.setItem(STORAGE_KEY, JSON.stringify(localSaves));
-    }
-
-    lastSyncTime = Date.now();
-    setSyncStatus('synced');
-  } catch (e) {
-    console.error('Reconcile error:', e);
-    setSyncStatus('error');
-  }
-}
-
-// Save to localStorage without triggering cloud sync (used during cloud load)
-function autoSaveLocal() {
-  localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
-}
-
-function loadCloudAutosave() {
-  if (pendingCloudAutosave) {
-    state = pendingCloudAutosave;
-    pendingCloudAutosave = null;
-    autoSaveLocal();
-    renderSections();
-    loadInfoFields();
-    SECTIONS.forEach(s => updateBadge(s.id));
-  }
-  document.getElementById('conflictBanner').classList.remove('visible');
-}
-
-function dismissConflict() {
-  pendingCloudAutosave = null;
-  document.getElementById('conflictBanner').classList.remove('visible');
-  // Push local version to cloud
-  cloudSync();
-}
-
-// Handle auth callback (magic link redirect)
-function handleAuthCallback() {
-  const hash = window.location.hash;
-  if (hash && (hash.includes('access_token') || hash.includes('type=magiclink'))) {
-    // Supabase client auto-detects the hash, but ensure we clean the URL
-    setTimeout(() => {
-      if (window.location.hash) {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-      }
-    }, 1000);
-  }
-}
-
-// Online/offline listeners
-window.addEventListener('online', () => {
-  if (supabaseClient && currentUser) debouncedCloudSync();
-});
-
-// ====== INIT ======
-autoLoad();
-renderSections();
-loadInfoFields();
-SECTIONS.forEach(s => updateBadge(s.id));
-openPhotoDB().then(() => loadAllThumbs()).catch(() => {});
-
-// Init Supabase if configured
-if (typeof window.supabase !== 'undefined') {
-  handleAuthCallback();
-  initSupabase();
-}
-
-// Service Worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-}
