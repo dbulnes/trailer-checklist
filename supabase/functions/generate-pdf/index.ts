@@ -13,14 +13,19 @@ import {
 } from "https://esm.sh/pdf-lib@1.17.1";
 
 const BUCKET = "inspection-pdfs";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Expose-Headers": "X-PDF-URL, X-PDF-Path, X-PDF-Error",
-};
+
+function getCorsHeaders(req: Request) {
+  return {
+    "Access-Control-Allow-Origin": req.headers.get("Origin") || "",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Expose-Headers": "X-PDF-URL, X-PDF-Path, X-PDF-Error",
+  };
+}
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -349,22 +354,21 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const folder = baseName;
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `${baseName}_${timestamp}.pdf`;
-    const storagePath = `${folder}/${filename}`;
+    const storagePath = `${baseName}/${filename}`;
 
     // List existing versions for this checklist
     const { data: existing } = await adminClient.storage
       .from(BUCKET)
-      .list(folder, { sortBy: { column: "created_at", order: "asc" } });
+      .list(baseName, { sortBy: { column: "created_at", order: "asc" } });
 
     // Delete oldest versions if at the limit
     if (existing && existing.length >= MAX_VERSIONS) {
       const toDelete = existing.slice(0, existing.length - MAX_VERSIONS + 1);
       await adminClient.storage
         .from(BUCKET)
-        .remove(toDelete.map((f: { name: string }) => `${folder}/${f.name}`));
+        .remove(toDelete.map((f: { name: string }) => `${baseName}/${f.name}`));
     }
 
     const { error: uploadError } = await adminClient.storage

@@ -77,13 +77,28 @@ alter table device_links enable row level security;
 create policy "Users create own device links" on device_links
   for insert with check (auth.uid() = user_id);
 
--- Anyone (including unauthenticated Device B) can read unexpired unclaimed codes
-create policy "Anyone can read valid device link by code" on device_links
-  for select using (claimed = false and expires_at > now());
-
 -- Authenticated users can mark their own codes as claimed
 create policy "Users update own device links" on device_links
   for update using (auth.uid() = user_id);
+
+-- Claim a pairing code atomically: validates expiry, marks claimed, returns token.
+-- SECURITY DEFINER bypasses RLS so the refresh_token is never exposed via direct SELECT.
+create or replace function claim_device_link(link_code text)
+returns table(refresh_token text, user_id uuid, can_pair boolean)
+language plpgsql security definer as $$
+declare
+  row device_links%rowtype;
+begin
+  select * into row from device_links d
+    where d.code = upper(link_code) and d.claimed = false and d.expires_at > now()
+    for update;
+  if not found then
+    raise exception 'Invalid or expired code';
+  end if;
+  update device_links set claimed = true where id = row.id;
+  return query select row.refresh_token, row.user_id, row.can_pair;
+end;
+$$;
 
 -- Authenticated users can delete their own codes
 create policy "Users delete own device links" on device_links

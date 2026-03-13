@@ -88,7 +88,7 @@ You can optionally sync your inspections across devices using [Supabase](https:/
 ### Setup
 
 1. Create a free Supabase project at https://supabase.com
-2. In your Supabase dashboard, go to **SQL Editor** and run the contents of [`setup.sql`](docs/setup.sql) — this creates all tables, storage, and security policies in one step
+2. In your Supabase dashboard, go to **SQL Editor** and run the contents of [`setup.sql`](scripts/setup.sql) — this creates all tables, storage, and security policies in one step
 3. In Supabase **Authentication > Settings**, make sure Email auth is enabled (magic link is on by default)
 4. In Supabase **Authentication > URL Configuration**:
    - Set **Site URL** to your app URL (e.g. `https://yourusername.github.io/trailer-checklist/`)

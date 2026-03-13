@@ -82,7 +82,7 @@ describe('supabase edge function', () => {
   });
 
   it('setup.sql includes inspection-pdfs bucket', () => {
-    const sql = fs.readFileSync(path.join(root, 'docs/setup.sql'), 'utf8');
+    const sql = fs.readFileSync(path.join(root, 'scripts/setup.sql'), 'utf8');
     assert.ok(sql.includes('inspection-pdfs'), 'setup.sql must create inspection-pdfs bucket');
   });
 });

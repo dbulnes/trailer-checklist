@@ -17,7 +17,8 @@ RV Inspect — self-contained PWA for pre-purchase RV and camper trailer inspect
 │   └── cloud.js                # Save/load, Supabase sync, auth, init sequence
 ├── docs/
 │   ├── Micro Minnie Inspection Checklist.pdf   # Source PDF
-│   ├── rv-inspection-checklist.md              # Markdown checklist reference
+│   └── rv-inspection-checklist.md              # Markdown checklist reference
+├── scripts/
 │   └── setup.sql                               # Supabase schema setup
 ├── supabase/functions/
 │   └── generate-pdf/index.ts   # Edge Function: PDF generation via pdf-lib

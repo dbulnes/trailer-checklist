@@ -12,6 +12,14 @@ function refreshUI() {
   SECTIONS.forEach(s => updateBadge(s.id));
 }
 
+// Deep-clone data into global state and refresh the UI.
+// Used when pulling state from cloud or loading a save.
+function loadState(data) {
+  state = JSON.parse(JSON.stringify(data));
+  ensureByField();
+  refreshUI();
+}
+
 // Ensure currentSaveName is set. If the checklist has no name, generate one.
 function ensureSaveName() {
   const nameFromField = (state.info.name || '').trim();
@@ -451,9 +459,7 @@ async function cloudSyncNow() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
       // Reload current save if it was updated
       if (currentSaveName && saves[currentSaveName]) {
-        state = JSON.parse(JSON.stringify(saves[currentSaveName].data));
-        ensureByField();
-        refreshUI();
+        loadState(saves[currentSaveName].data);
       }
     }
 
@@ -495,9 +501,7 @@ async function pushSaveToCloud(name, data) {
         saves[name] = { data: existing.state, ts: cloudTs };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
         if (name === currentSaveName) {
-          state = JSON.parse(JSON.stringify(existing.state));
-          ensureByField();
-          refreshUI();
+          loadState(existing.state);
         }
         return;
       }
@@ -552,9 +556,7 @@ async function reconcileOnLoad() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(localSaves));
         // If current save was updated from cloud, reload it
         if (currentSaveName && localSaves[currentSaveName]) {
-          state = JSON.parse(JSON.stringify(localSaves[currentSaveName].data));
-          ensureByField();
-          refreshUI();
+          loadState(localSaves[currentSaveName].data);
         }
       }
     }
@@ -703,8 +705,9 @@ async function claimPairURL(pairUrl) {
 
     showCloudMsg(msgEl, 'Linking...', false);
 
-    const { data, error } = await supabaseClient.from('device_links')
-      .select('refresh_token,user_id,can_pair').eq('code', code.toUpperCase().replace(/[-\s]/g, '')).single();
+    const { data, error } = await supabaseClient.rpc('claim_device_link', {
+      link_code: code.toUpperCase().replace(/[-\s]/g, '')
+    }).single();
 
     if (error || !data) {
       showCloudMsg(msgEl, 'Invalid or expired code.', true);
@@ -720,8 +723,6 @@ async function claimPairURL(pairUrl) {
       return;
     }
 
-    await supabaseClient.from('device_links').update({ claimed: true }).eq('code', code);
-
     localStorage.setItem('rv_inspect_paired', 'true');
     localStorage.setItem('rv_inspect_can_pair', data.can_pair ? 'true' : 'false');
 
@@ -736,17 +737,22 @@ async function claimPairURL(pairUrl) {
   }
 }
 
-// jsQR library — pure JS QR decoder, works on all browsers (loaded on demand)
-let jsQRLoaded = false;
-function loadJsQR() {
-  if (jsQRLoaded) return Promise.resolve();
+// On-demand CDN script loader with deduplication
+const _loadedScripts = {};
+function loadCDNScript(url) {
+  if (_loadedScripts[url]) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-    script.onload = () => { jsQRLoaded = true; resolve(); };
+    script.src = url;
+    script.onload = () => { _loadedScripts[url] = true; resolve(); };
     script.onerror = reject;
     document.head.appendChild(script);
   });
+}
+
+// jsQR library — pure JS QR decoder, works on all browsers (loaded on demand)
+function loadJsQR() {
+  return loadCDNScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
 }
 
 // Scan QR — opens file picker (camera on mobile, file upload on desktop),
@@ -797,17 +803,9 @@ function scanPairQR() {
   fileInput.click();
 }
 
-// QR code library (loaded on demand)
-let qrLibLoaded = false;
+// QR code generator library (loaded on demand)
 function loadQRLibrary() {
-  if (qrLibLoaded) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
-    script.onload = () => { qrLibLoaded = true; resolve(); };
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
+  return loadCDNScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js');
 }
 
 function renderQRCode(code) {

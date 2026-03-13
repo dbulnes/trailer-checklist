@@ -380,10 +380,7 @@ async function loadAllThumbs() {
   req.onsuccess = e => {
     const cursor = e.target.result;
     if (cursor) {
-      // Extract the item key (everything except the last _N index)
-      const parts = cursor.key.split('_');
-      parts.pop();
-      keys.add(parts.join('_'));
+      keys.add(parsePhotoKey(cursor.key).itemKey);
       cursor.continue();
     } else {
       keys.forEach(k => renderThumbs(k));
@@ -397,9 +394,26 @@ async function loadAllThumbs() {
 // IndexedDB remains the local cache; cloud sync happens in the background.
 // Data URLs are converted to Blobs for upload and back for download.
 
+// Encode current save name for use as a Storage folder path
+function inspectionFolder() {
+  return encodeURIComponent(currentSaveName || '__autosave__');
+}
+
 function photoStoragePath(itemKey, idx) {
-  const inspectionName = encodeURIComponent(currentSaveName || '__autosave__');
-  return `${inspectionName}/${itemKey}_${idx}.jpg`;
+  return `${inspectionFolder()}/${itemKey}_${idx}.jpg`;
+}
+
+// Parse a composite photo key like "exterior_3" into { itemKey: "exterior", idx: 3 }
+// Handles item keys that themselves contain underscores (e.g. "roof_vents_2").
+function parsePhotoKey(compositeKey) {
+  const parts = compositeKey.split('_');
+  const idx = parseInt(parts.pop());
+  return { itemKey: parts.join('_'), idx };
+}
+
+// Sanitize a title string for use as a filename (letters, digits, spaces, hyphens, underscores)
+function sanitizeTitle(title) {
+  return (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection').replace(/ /g, '_');
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -433,8 +447,7 @@ async function deletePhotoFromCloud(itemKey, idx) {
 
 async function pullPhotosFromCloud() {
   if (!supabaseClient || !currentUser) return;
-  const inspectionName = encodeURIComponent(currentSaveName || '__autosave__');
-  const folder = inspectionName;
+  const folder = inspectionFolder();
   try {
     const { data: files, error } = await supabaseClient.storage
       .from('inspection-photos').list(folder);
@@ -444,11 +457,7 @@ async function pullPhotosFromCloud() {
     const db = await openPhotoDB();
     const keysToRender = new Set();
     for (const file of files) {
-      // Parse filename: {item_key}_{photo_index}.jpg
-      const name = file.name.replace(/\.jpg$/, '');
-      const parts = name.split('_');
-      const idx = parseInt(parts.pop());
-      const itemKey = parts.join('_');
+      const { itemKey, idx } = parsePhotoKey(file.name.replace(/\.jpg$/, ''));
       const dbKey = `${itemKey}_${idx}`;
 
       // Skip if already cached locally
@@ -487,9 +496,7 @@ async function pushAllPhotosToCloud() {
     req.onsuccess = e => {
       const cursor = e.target.result;
       if (cursor) {
-        const parts = cursor.key.split('_');
-        const idx = parseInt(parts.pop());
-        const itemKey = parts.join('_');
+        const { itemKey, idx } = parsePhotoKey(cursor.key);
         uploads.push(pushPhotoToCloud(itemKey, idx, cursor.value));
         cursor.continue();
       } else {
@@ -876,7 +883,7 @@ function exportMarkdown() {
   // Footer
   md += `---\n*Generated ${new Date().toLocaleDateString()} · RV Inspect*\n`;
 
-  const filename = (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection') + '.md';
+  const filename = sanitizeTitle(title) + '.md';
   downloadBlob(new Blob([md], { type: 'text/markdown' }), filename);
   showToast('Markdown exported');
 }
@@ -908,7 +915,7 @@ async function exportPDF() {
           const pdfUrl = resp.headers.get('X-PDF-URL');
           const pdfError = resp.headers.get('X-PDF-Error');
           if (pdfError) showToast('PDF storage: ' + pdfError, true);
-          const filename = (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection').replace(/ /g, '_') + '.pdf';
+          const filename = sanitizeTitle(title) + '.pdf';
 
           // On mobile, fetch from signed URL (Storage serves proper Content-Type)
           let blob;
@@ -950,9 +957,7 @@ async function exportPDF() {
       req.onsuccess = e => {
         const cursor = e.target.result;
         if (cursor) {
-          const parts = cursor.key.split('_');
-          parts.pop();
-          const itemKey = parts.join('_');
+          const { itemKey } = parsePhotoKey(cursor.key);
           if (!photoMap[itemKey]) photoMap[itemKey] = [];
           photoMap[itemKey].push(cursor.value);
           cursor.continue();
@@ -1205,7 +1210,7 @@ async function exportPDF() {
 
   // Mobile: download as HTML file (avoids window.open trap in iOS PWA)
   if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    const filename = (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection').replace(/ /g, '_') + '.html';
+    const filename = sanitizeTitle(title) + '.html';
     await downloadBlob(new Blob([html], { type: 'text/html' }), filename);
     showToast('HTML report exported');
     return;
