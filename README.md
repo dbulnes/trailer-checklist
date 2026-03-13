@@ -35,9 +35,8 @@ A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspecti
 ### Run Locally
 
 ```bash
-# Serve the app
-python3 -m http.server 8080
-# Open http://localhost:8080
+npx serve .
+# Open http://localhost:3000
 ```
 
 ### Run Tests

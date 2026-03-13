@@ -34,8 +34,8 @@ RV Inspect — self-contained PWA for pre-purchase RV and camper trailer inspect
 ## Running Locally
 
 ```bash
-python3 -m http.server 8080
-# Open http://localhost:8080
+npx serve .
+# Open http://localhost:3000
 ```
 
 A service worker (`service-worker.js`) caches assets for offline use. **Bump `CACHE_NAME` in `service-worker.js`** whenever you change any `.js`, `.css`, or `.html` file, otherwise returning users will see stale cached versions.
