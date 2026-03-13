@@ -70,7 +70,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to main:
 - **`js/cloud.js`** — Save/load system, Supabase cloud sync, auth, last-write-wins reconciliation, init sequence.
 
 Key subsystems:
-- **State object**: `{ info, checks, notes, inputs, summary }` — serialized to localStorage for auto-save and named saves.
+- **State object**: `{ info, checks, notes, inputs, summary, by }` — serialized to localStorage for auto-save and named saves. The `by` object maps item keys to display names for attribution on shared checklists.
 - **Photos**: Stored in IndexedDB (`rv_inspect_photos`) as local cache, synced to Supabase Storage bucket `inspection-photos`. Resized to max 800px JPEG quality 0.6.
 - **VIN scanner**: Uses `BarcodeDetector` API with a WASM polyfill for iOS (loaded on demand from CDN).
 - **QR scanner**: Uses `jsQR` library (pure JS, loaded on demand from CDN) for device pairing QR codes. Images are downscaled before decoding for reliability with high-res camera photos.
@@ -86,7 +86,9 @@ Optional cloud persistence via user-provided Supabase project (BYO model — no 
 - **Schema**: `inspections` table (JSONB state, one row per named save per user) + `inspection-photos` Storage bucket + `inspection-pdfs` Storage bucket + `device_links` table (short-lived pairing codes).
 - **PDF export**: Server-side via Supabase Edge Function (`generate-pdf`). Uses `pdf-lib` to build PDF from structured data, saves to `inspection-pdfs` Storage bucket, returns signed URL + PDF bytes. On mobile, the client fetches from the signed URL (proper MIME type from Storage) and uses Web Share API for native save/share. Falls back to client-side HTML preview if Supabase is not connected.
 - **Photo sync**: Photos uploaded to Supabase Storage on capture, downloaded on save load. Path: `{inspection_name}/{item_key}_{index}.jpg`.
-- **Sync**: Debounced (2s) upserts on every state change. Newest timestamp always wins — pushes check cloud `updated_at` before overwriting, pulls auto-accept cloud-newer data.
+- **Sync**: Debounced (2s) upserts on every state change. Newest timestamp always wins — pushes check cloud `updated_at` before overwriting, pulls auto-accept cloud-newer data. Attribution (`by`) fields are merged (union) during sync so no device's stamps are lost.
+- **Realtime**: Subscribes to Supabase Realtime (postgres_changes) on the `inspections` table so edits on one device appear on others instantly without manual refresh. Ignores echoes from the local device's own debounced pushes.
+- **Attribution**: Each check/note/input stamps `state.by[key]` with the user's display name. Attribution labels appear next to items when 2+ contributors exist. Display name is required on sign-in and device pairing (cannot be skipped). On linked devices, "Signed in as" is shown in App Info rather than prominently.
 - **Config**: Stored in `rv_inspect_supabase` localStorage key (`{ url, key }`).
 - **Device pairing**: Device A generates an 8-char code (stored in `device_links` with 5-min TTL). Device B scans QR or uploads QR image to authenticate via refresh token. QR URL includes `sb_url` and `sb_key` params so Device B auto-configures Supabase. Auto-syncs immediately after pairing. QR rendered via `qrcode-generator`, decoded via `jsQR` (both loaded on demand from CDN).
 - **Service worker**: CDN scripts (Supabase JS, barcode polyfill, qrcode-generator, jsQR) use network-first strategy; Supabase API calls and `version.txt` bypass the cache entirely.

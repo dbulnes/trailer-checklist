@@ -140,11 +140,13 @@
       </details>
     </div>
     <div id="cloudLoggedIn" style="display:none">
-      <p style="font-size:.8rem;color:var(--text2)">Signed in as</p>
-      <p class="cloud-email" id="cloudUserEmail"></p>
+      <div id="cloudSignedInInfo">
+        <p style="font-size:.8rem;color:var(--text2)">Signed in as</p>
+        <p class="cloud-email" id="cloudUserEmail"></p>
+      </div>
       <div style="margin:8px 0">
         <label style="font-size:.75rem;color:var(--text2);display:block;margin-bottom:4px">Your display name</label>
-        <input type="text" id="handleInput" placeholder="e.g. David" maxlength="20" style="width:100%;background:var(--surface2);border:1px solid #3a3a5a;color:var(--text);border-radius:8px;padding:8px 10px;font-size:.85rem;outline:none" oninput="setHandle(this.value)">
+        <input type="text" id="handleInput" placeholder="e.g. David" maxlength="20" required style="width:100%;background:var(--surface2);border:1px solid #3a3a5a;color:var(--text);border-radius:8px;padding:8px 10px;font-size:.85rem;outline:none" oninput="updateHandle(this)">
       </div>
       <p class="cloud-status" id="cloudSyncStatus">Not synced yet</p>
       <button class="btn btn-accent" style="width:100%;justify-content:center;padding:10px;margin-top:8px" onclick="cloudSyncNow()">Sync Now</button>
@@ -171,6 +173,10 @@
     </div>
     <details class="cloud-section" style="margin-top:12px">
       <summary>App Info</summary>
+      <div id="appInfoSignedIn" style="display:none">
+        <p style="font-size:.8rem;color:var(--text2)">Signed in as</p>
+        <p class="cloud-email" id="appInfoUserEmail" style="margin-bottom:8px"></p>
+      </div>
       <p class="app-version-info" id="appVersionInfo"></p>
       <button class="btn" style="width:100%;justify-content:center;padding:8px;margin-top:8px;font-size:.8rem" onclick="forceRefresh()">Force Refresh</button>
     </details>

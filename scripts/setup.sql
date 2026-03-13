@@ -20,6 +20,9 @@ alter table inspections enable row level security;
 create policy "Users CRUD own inspections" on inspections
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Enable Realtime so changes propagate to other devices instantly
+alter publication supabase_realtime add table inspections;
+
 -- Auto-update updated_at on changes
 create or replace function update_updated_at()
 returns trigger as $$

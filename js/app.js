@@ -92,6 +92,7 @@ let currentSaveName = null;
 const HANDLE_KEY = 'rv_inspect_handle';
 function getHandle() { return localStorage.getItem(HANDLE_KEY) || ''; }
 function setHandle(h) { localStorage.setItem(HANDLE_KEY, h.trim()); }
+function updateHandle(el) { const v = el.value.trim(); if (v) setHandle(v); }
 function stampBy(key) { const h = getHandle(); if (h) { if (!state.by) state.by = {}; state.by[key] = h; } }
 // Ensure state.by exists (for saves created before attribution was added)
 function ensureByField() { if (!state.by) state.by = {}; }
@@ -102,8 +103,11 @@ function isMultiContributor() {
 }
 async function ensureHandle() {
   if (getHandle()) return;
-  const name = await appPrompt('Enter your name or initials', 'e.g. David');
-  if (name) setHandle(name);
+  let name = null;
+  while (!name) {
+    name = await appPrompt('Enter your display name (required for shared checklists)', 'e.g. David');
+  }
+  setHandle(name);
 }
 
 // ====== RENDER ======

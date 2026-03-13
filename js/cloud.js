@@ -5,6 +5,14 @@
 // If unnamed, auto-save uses a generated name like "Inspection 1".
 const STORAGE_KEY = 'rv_inspect_saves';
 
+// Merge two inspection states, combining their `by` attribution maps so
+// no device's stamps are lost.  `base` is the state being accepted (usually
+// cloud-side); `overlay` supplies any extra `by` entries (usually local-side).
+function mergeByAttribution(base, overlay) {
+  const mergedBy = Object.assign({}, overlay?.by, base?.by);
+  return { ...base, by: mergedBy };
+}
+
 // Refresh the full UI after state changes (used after loads, syncs, and reconciles)
 function refreshUI() {
   renderSections();
@@ -257,6 +265,7 @@ function saveBYOConfig() {
 
 async function disconnectSupabase() {
   if (!await appConfirm('Disconnect from Supabase? Local data will be kept.')) return;
+  unsubscribeRealtime();
   localStorage.removeItem(BYO_CONFIG_KEY);
   supabaseClient = null;
   currentUser = null;
@@ -277,7 +286,8 @@ function initSupabase() {
       if (currentUser && !reconcilePromise) {
         reconcilePromise = reconcileOnLoad().finally(() => { reconcilePromise = null; });
       }
-      if (event === 'SIGNED_IN' && currentUser) ensureHandle();
+      if (event === 'SIGNED_IN' && currentUser) { ensureHandle(); subscribeRealtime(); }
+      if (event === 'SIGNED_OUT') unsubscribeRealtime();
     });
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       currentUser = session?.user || null;
@@ -285,6 +295,7 @@ function initSupabase() {
       if (currentUser && !reconcilePromise) {
         reconcilePromise = reconcileOnLoad().finally(() => { reconcilePromise = null; });
       }
+      if (currentUser) subscribeRealtime();
     });
     ensureTable();
   } catch (e) {
@@ -376,6 +387,13 @@ function updateCloudUI() {
     const canPair = localStorage.getItem('rv_inspect_can_pair') === 'true';
     const pairSection = document.getElementById('pairGenerateSection');
     if (pairSection) pairSection.style.display = (!isPaired || canPair) ? '' : 'none';
+    // On linked devices, hide prominent "Signed in as" and show it in App Info instead
+    const signedInInfo = document.getElementById('cloudSignedInInfo');
+    const appInfoSignedIn = document.getElementById('appInfoSignedIn');
+    const appInfoEmail = document.getElementById('appInfoUserEmail');
+    if (signedInInfo) signedInInfo.style.display = isPaired ? 'none' : '';
+    if (appInfoSignedIn) appInfoSignedIn.style.display = isPaired ? '' : 'none';
+    if (appInfoEmail) appInfoEmail.textContent = currentUser.email;
   } else {
     loggedIn.style.display = 'none';
     loggedOut.style.display = 'block';
@@ -387,6 +405,52 @@ function updateCloudUI() {
 function setSyncStatus(status) {
   const dot = document.getElementById('syncDot');
   dot.className = 'sync-dot ' + status;
+}
+
+// ====== REALTIME ======
+// Subscribe to changes on the inspections table so edits on one device
+// appear automatically on the other without manual refresh.
+let realtimeChannel = null;
+
+function subscribeRealtime() {
+  if (!supabaseClient || !currentUser) return;
+  unsubscribeRealtime();
+  realtimeChannel = supabaseClient
+    .channel('inspections-sync')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'inspections',
+      filter: 'user_id=eq.' + currentUser.id
+    }, (payload) => {
+      const row = payload.new;
+      if (!row || !row.name || !row.state) return;
+      // Ignore echoes of our own push (same device, within debounce window)
+      if (row.name === currentSaveName && debounceTimer) return;
+      const cloudTs = new Date(row.updated_at).getTime();
+      const saves = getSaves();
+      const local = saves[row.name];
+      const localTs = local?.ts || 0;
+      if (cloudTs <= localTs) return; // Local is already up-to-date
+      // Accept cloud state, merging attributions from both sides
+      const merged = mergeByAttribution(row.state, local?.data);
+      saves[row.name] = { data: merged, ts: cloudTs };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+      if (row.name === currentSaveName) {
+        loadState(merged);
+      }
+      lastSyncTime = Date.now();
+      setSyncStatus('synced');
+      updateCloudUI();
+    })
+    .subscribe();
+}
+
+function unsubscribeRealtime() {
+  if (realtimeChannel) {
+    supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
 }
 
 // Sync
@@ -496,15 +560,18 @@ async function pushSaveToCloud(name, data) {
     if (existing) {
       const cloudTs = new Date(existing.updated_at).getTime();
       if (cloudTs > localTs) {
-        // Cloud is newer — don't overwrite, pull it instead
+        // Cloud is newer — pull it, but keep merged attributions
+        const merged = mergeByAttribution(existing.state, data);
         const saves = getSaves();
-        saves[name] = { data: existing.state, ts: cloudTs };
+        saves[name] = { data: merged, ts: cloudTs };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
         if (name === currentSaveName) {
-          loadState(existing.state);
+          loadState(merged);
         }
         return;
       }
+      // Local is newer — push with merged attributions
+      data = mergeByAttribution(data, existing.state);
     }
     await supabaseClient.from('inspections').upsert({
       user_id: currentUser.id,
@@ -537,8 +604,9 @@ async function reconcileOnLoad() {
         const cloudTs = new Date(cs.updated_at).getTime();
         const local = localSaves[cs.name];
         if (!local || cloudTs > (local.ts || 0)) {
-          // Cloud is newer (or cloud-only) → accept it
-          localSaves[cs.name] = { data: cs.state, ts: cloudTs };
+          // Cloud is newer (or cloud-only) → accept it, but merge attributions
+          const merged = mergeByAttribution(cs.state, local?.data);
+          localSaves[cs.name] = { data: merged, ts: cloudTs };
           updated = true;
         }
       }
