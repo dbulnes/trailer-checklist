@@ -272,6 +272,7 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
   background: var(--surface2); border-radius: 10px; padding: 12px;
   margin: 8px 0; cursor: pointer; border: 1px solid #3a3a5a;
 }
+.save-slot.current { border-color: var(--accent); }
 .save-slot:active { border-color: var(--accent); }
 .save-slot-name { font-size: .9rem; font-weight: 600; }
 .save-slot-date { font-size: .7rem; color: var(--text2); margin-top: 2px; }
@@ -283,12 +284,6 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 }
 .save-slot-btn.delete { color: var(--warn); border-color: #4a1a1a; }
 .save-slot-btn:active { opacity: .7; }
-.new-save { margin-top: 12px; }
-.new-save input {
-  width: 100%; background: var(--surface2); border: 1px solid #3a3a5a;
-  color: var(--text); border-radius: 8px; padding: 10px; font-size: .9rem;
-  outline: none; margin-bottom: 8px;
-}
 
 /* Cloud sync */
 .cloud-btn { position: relative; }
@@ -315,6 +310,25 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 }
 .cloud-msg.error { background: #2a1015; color: var(--warn); }
 .cloud-msg.visible { display: block; }
+/* Device pairing */
+.pair-code-display {
+  font-family: 'SF Mono', 'Menlo', monospace; font-size: 1.8rem; font-weight: 700;
+  letter-spacing: 4px; text-align: center; color: var(--accent);
+  padding: 16px; background: var(--surface2); border-radius: var(--radius);
+  margin: 12px 0; user-select: all;
+}
+.pair-countdown { font-size: .75rem; color: var(--text2); text-align: center; }
+.pair-qr { display: flex; justify-content: center; margin: 12px 0; }
+.pair-qr canvas, .pair-qr img { border-radius: 8px; }
+.pair-input-row { display: flex; gap: 8px; margin-top: 8px; }
+.pair-input-row input {
+  flex: 1; background: var(--surface2); border: 1px solid #3a3a5a; color: var(--text);
+  border-radius: 8px; padding: 10px; font-size: 1.1rem; font-family: 'SF Mono', 'Menlo', monospace;
+  letter-spacing: 2px; text-transform: uppercase; outline: none; text-align: center;
+}
+.pair-input-row input:focus { border-color: var(--accent); }
+.pair-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--text2); font-size: .8rem; }
+.pair-divider::before, .pair-divider::after { content: ''; flex: 1; border-top: 1px solid #2a2a4a; }
 /* Conflict banner */
 .conflict-banner {
   display: none; margin: 12px; margin-bottom: calc(12px + 70px + env(safe-area-inset-bottom, 0px));
@@ -406,13 +420,10 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 <!-- Save/Load Modal -->
 <div class="modal-overlay" id="saveModal" onclick="closeSaveModal(event)">
   <div class="modal">
-    <h3>💾 Save / Load Inspection</h3>
+    <h3>💾 Inspections</h3>
     <div id="saveSlots"></div>
-    <div class="new-save">
-      <input type="text" id="newSaveName" placeholder="New save name...">
-      <button class="btn btn-accent" style="width:100%;justify-content:center;padding:10px" onclick="saveNew()">Save Current Inspection</button>
-    </div>
-    <button class="btn" style="width:100%;justify-content:center;margin-top:8px;padding:10px" onclick="closeSaveModal()">Cancel</button>
+    <button class="btn btn-accent" style="width:100%;justify-content:center;padding:10px;margin-top:12px" onclick="newInspection()">+ New Inspection</button>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:8px;padding:10px" onclick="closeSaveModal()">Close</button>
   </div>
 </div>
 
@@ -456,6 +467,15 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
         <button class="btn btn-accent" style="width:100%;justify-content:center;padding:10px" onclick="sendMagicLink()">Send Magic Link</button>
         <div class="cloud-msg" id="magicLinkMsg"></div>
       </div>
+      <div class="pair-divider">or</div>
+      <div id="pairClaimSection">
+        <p style="font-size:.85rem;color:var(--text2);margin-bottom:8px">Have a pairing code?</p>
+        <div class="pair-input-row">
+          <input type="text" id="pairCodeInput" placeholder="ABCD-EFGH" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button class="btn btn-accent" style="padding:10px 16px" onclick="claimDeviceLink()">Link</button>
+        </div>
+        <div class="cloud-msg" id="pairClaimMsg"></div>
+      </div>
       <hr class="cloud-divider">
       <details class="cloud-section">
         <summary>Supabase Setup</summary>
@@ -471,7 +491,22 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
       <p class="cloud-email" id="cloudUserEmail"></p>
       <p class="cloud-status" id="cloudSyncStatus">Not synced yet</p>
       <button class="btn btn-accent" style="width:100%;justify-content:center;padding:10px;margin-top:8px" onclick="cloudSyncNow()">Sync Now</button>
-      <button class="btn" style="width:100%;justify-content:center;padding:10px;margin-top:8px" onclick="signOut()">Sign Out</button>
+      <hr class="cloud-divider">
+      <div id="pairGenerateSection">
+        <button class="btn" style="width:100%;justify-content:center;padding:10px" onclick="generatePairingCode()">🔗 Link Another Device</button>
+      </div>
+      <div id="pairCodeDisplay" style="display:none">
+        <p style="font-size:.8rem;color:var(--text2);text-align:center;margin-bottom:4px">Enter this code on your other device:</p>
+        <div class="pair-code-display" id="pairCodeText"></div>
+        <div class="pair-qr" id="pairQR"></div>
+        <p class="pair-countdown" id="pairCountdown"></p>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-accent" style="flex:1;justify-content:center;padding:10px" onclick="copyPairingCode()">Copy Code</button>
+          <button class="btn" style="flex:1;justify-content:center;padding:10px" onclick="cancelDeviceLink()">Cancel</button>
+        </div>
+      </div>
+      <hr class="cloud-divider">
+      <button class="btn" style="width:100%;justify-content:center;padding:10px" onclick="signOut()">Sign Out</button>
       <hr class="cloud-divider">
       <button class="btn" style="width:100%;justify-content:center;padding:10px;color:var(--warn)" onclick="disconnectSupabase()">Disconnect Supabase</button>
     </div>

@@ -11,6 +11,7 @@ A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspecti
 - **Tap to cycle** each item: unchecked → ✓ pass → ✗ issue → — N/A
 - **Notes and measurements** on any item (temperatures, voltages, tire pressures, etc.)
 - **Auto-save** — progress saves automatically to your device and to the current named save
+- **Device pairing** — link another device by code or QR scan, no email needed on the second device
 - **Named saves** — save, load, and delete multiple inspections
 - **Summary view** — see pass/issue/pending counts, all flagged issues, set overall condition and recommended action
 - **Export** — share or copy a full text summary of findings
@@ -95,6 +96,51 @@ create policy "Users manage own photos" on storage.objects
 8. Click the magic link in your email — you'll be redirected back to the app and signed in automatically
 
 Your inspections will now sync across any device where you sign in.
+
+### Device Pairing (Link Another Device)
+
+Instead of signing into email on every device, you can pair a second device using a short-lived code:
+
+1. Run this migration in your Supabase **SQL Editor**:
+
+```sql
+create table device_links (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  refresh_token text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '5 minutes'),
+  claimed boolean not null default false
+);
+
+create index idx_device_links_code on device_links(code);
+alter table device_links enable row level security;
+
+create policy "Users create own device links" on device_links
+  for insert with check (auth.uid() = user_id);
+
+create policy "Anyone can read valid device link by code" on device_links
+  for select using (claimed = false and expires_at > now());
+
+create policy "Users update own device links" on device_links
+  for update using (auth.uid() = user_id);
+
+create or replace function cleanup_expired_device_links()
+returns trigger as $$
+begin
+  delete from device_links where expires_at < now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger device_links_cleanup
+  after insert on device_links for each row execute function cleanup_expired_device_links();
+```
+
+2. On **Device A** (already signed in): tap ☁️ → **Link Another Device** → a code and QR are shown (valid for 5 minutes)
+3. On **Device B**: scan the QR code (auto-configures Supabase + fills the code) or open the app → ☁️ → enter the code manually → tap **Link**
+4. Device B is now signed in as the same user — no email required
 
 ### How it works
 

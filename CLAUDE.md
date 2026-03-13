@@ -41,15 +41,16 @@ Optional cloud persistence via user-provided Supabase project (BYO model — no 
 
 - **Offline-first**: localStorage is always the source of truth. Supabase is a secondary sync layer.
 - **Auth**: Email magic link via Supabase Auth.
-- **Schema**: `inspections` table (JSONB state, one row per named save per user) + `inspection-photos` Storage bucket.
+- **Schema**: `inspections` table (JSONB state, one row per named save per user) + `inspection-photos` Storage bucket + `device_links` table (short-lived pairing codes).
 - **Photo sync**: Photos uploaded to Supabase Storage on capture, downloaded on save load. Path: `{user_id}/{inspection_name}/{item_key}_{index}.jpg`.
 - **Sync**: Debounced (2s) upserts on every state change. On load, cloud and local are reconciled with conflict detection.
 - **Config**: Stored in `rv_inspect_supabase` localStorage key (`{ url, key }`).
-- **Service worker**: CDN scripts (Supabase JS, barcode polyfill) use network-first strategy; Supabase API calls bypass the cache entirely.
+- **Device pairing**: Device A generates an 8-char code (stored in `device_links` with 5-min TTL). Device B enters the code or scans a QR to authenticate via refresh token. QR URL includes `sb_url` and `sb_key` params so Device B auto-configures Supabase. QR rendered via `qrcode-generator` library loaded on demand.
+- **Service worker**: CDN scripts (Supabase JS, barcode polyfill, qrcode-generator) use network-first strategy; Supabase API calls bypass the cache entirely. On activation, SW posts `SW_UPDATED` message to all clients; the page auto-reloads if it was controlled by a previous SW (iOS PWA fix).
 
 ## Key Conventions
 
 - All commits must use author: `dbulnes <bulnes.david@gmail.com>`
 - No build step — edit files directly and test in browser
-- External dependencies (all via CDN): Supabase JS client, barcode-detector polyfill (loaded on demand)
+- External dependencies (all via CDN): Supabase JS client, barcode-detector polyfill, qrcode-generator (all loaded on demand except Supabase JS)
 - Mobile-first: test changes at phone viewport widths

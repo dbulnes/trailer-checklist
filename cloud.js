@@ -1,33 +1,73 @@
 // ====== SAVE / LOAD ======
-// localStorage keys:
-//   rv_inspect_autosave — auto-saved state (updated on every change)
-//   rv_inspect_saves    — { "name": { data: state, ts: timestamp }, ... }
-// Named saves can be created, loaded, and deleted from the save modal.
-// When a named save is loaded or created, currentSaveName is set so that
-// subsequent auto-saves also update that named save automatically.
+// localStorage key:
+//   rv_inspect_saves — { "name": { data: state, ts: timestamp }, ... }
+// The checklist name field IS the save name. Auto-save writes directly to it.
+// If unnamed, auto-save uses a generated name like "Inspection 1".
 const STORAGE_KEY = 'rv_inspect_saves';
-const AUTOSAVE_KEY = 'rv_inspect_autosave';
+
+// Ensure currentSaveName is set. If the checklist has no name, generate one.
+function ensureSaveName() {
+  const nameFromField = (state.info.name || '').trim();
+  if (nameFromField) {
+    currentSaveName = nameFromField;
+    return;
+  }
+  // Already have an auto-generated name — keep it
+  if (currentSaveName) return;
+  // Generate "Inspection 1", "Inspection 2", etc.
+  const saves = getSaves();
+  let n = 1;
+  while (saves['Inspection ' + n]) n++;
+  currentSaveName = 'Inspection ' + n;
+  state.info.name = currentSaveName;
+  updateAppTitle();
+  // Update the name input field
+  const nameInput = document.querySelector('[data-info="name"]');
+  if (nameInput) nameInput.value = currentSaveName;
+}
 
 function autoSave() {
-  localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
-  // If working on a named save, keep it updated too
-  if (currentSaveName) {
-    const saves = getSaves();
-    saves[currentSaveName] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-  }
+  ensureSaveName();
+  const saves = getSaves();
+  saves[currentSaveName] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
   debouncedCloudSync();
 }
 
 function autoLoad() {
-  const data = localStorage.getItem(AUTOSAVE_KEY);
-  if (data) {
-    try { state = JSON.parse(data); } catch(e) {}
-  }
+  // Load the most recently updated save
+  const saves = getSaves();
+  const keys = Object.keys(saves);
+  if (keys.length === 0) return;
+  const latest = keys.reduce((a, b) => (saves[a].ts || 0) >= (saves[b].ts || 0) ? a : b);
+  state = JSON.parse(JSON.stringify(saves[latest].data));
+  currentSaveName = latest;
 }
 
 function getSaves() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+}
+
+// Handle checklist name changes — debounced rename of the save entry
+let nameChangeTimer = null;
+function handleNameChange(newName) {
+  clearTimeout(nameChangeTimer);
+  nameChangeTimer = setTimeout(() => {
+    newName = newName.trim();
+    if (!newName || newName === currentSaveName) return;
+    const saves = getSaves();
+    const oldName = currentSaveName;
+    // Move save entry to new name
+    if (oldName && saves[oldName]) {
+      saves[newName] = saves[oldName];
+      delete saves[oldName];
+      deleteSaveFromCloud(oldName);
+    }
+    currentSaveName = newName;
+    saves[currentSaveName] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+    debouncedCloudSync();
+  }, 1000);
 }
 
 function showSaveModal() {
@@ -39,17 +79,17 @@ function showSaveModal() {
   if (keys.length === 0) {
     html = '<p style="color:var(--text2);font-size:.85rem;padding:8px 0">No saved inspections yet.</p>';
   } else {
-    html = '<p style="font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Local Saves</p>';
     html += keys.map(k => {
       const s = saves[k];
-      const d = s.ts ? new Date(s.ts).toLocaleString() : 'Unknown date';
+      const d = s.ts ? new Date(s.ts).toLocaleString() : '';
       const safeName = escHtml(k).replace(/'/g, "\\'");
+      const isCurrent = k === currentSaveName;
       return `
-        <div class="save-slot">
-          <div class="save-slot-name">${escHtml(k)}</div>
+        <div class="save-slot${isCurrent ? ' current' : ''}">
+          <div class="save-slot-name">${escHtml(k)}${isCurrent ? ' <span style="font-size:.65rem;color:var(--accent);font-weight:400">(current)</span>' : ''}</div>
           <div class="save-slot-date">${d}</div>
           <div class="save-slot-actions">
-            <button class="save-slot-btn" onclick="loadSave('${safeName}')">Load</button>
+            ${isCurrent ? '' : `<button class="save-slot-btn" onclick="loadSave('${safeName}')">Load</button>`}
             <button class="save-slot-btn delete" onclick="deleteSave('${safeName}')">Delete</button>
           </div>
         </div>`;
@@ -57,11 +97,9 @@ function showSaveModal() {
   }
 
   slotsEl.innerHTML = html + '<div id="cloudSaveSlots"></div>';
-  const suggestedName = state.info.name || (state.info.location ? `${state.info.location} - ${state.info.date || 'Inspection'}` : '');
-  document.getElementById('newSaveName').value = suggestedName;
   document.getElementById('saveModal').classList.add('show');
 
-  // Fetch cloud saves
+  // Fetch cloud-only saves
   loadCloudSavesIntoModal(keys);
 }
 
@@ -83,28 +121,20 @@ async function loadCloudSavesIntoModal(localKeys) {
       return;
     }
 
-    // Find cloud-only saves (not in local)
-    const cloudOnly = data.filter(d => !localKeys.includes(d.name));
-    // Find saves that exist in both (show cloud badge)
-    const synced = data.filter(d => localKeys.includes(d.name));
-
-    let html = '';
-
     // Add cloud badge to synced local saves
-    if (synced.length > 0) {
-      synced.forEach(s => {
-        const slot = document.querySelector(`[onclick*="loadSave('${escHtml(s.name).replace(/'/g, "\\'")}')"]`);
-        if (slot) {
-          const nameEl = slot.closest('.save-slot')?.querySelector('.save-slot-name');
-          if (nameEl && !nameEl.querySelector('.cloud-badge')) {
-            nameEl.insertAdjacentHTML('afterbegin', '<span style="font-size:.6rem;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;margin-right:6px;vertical-align:middle">☁️</span>');
-          }
-        }
-      });
-    }
+    const synced = data.filter(d => localKeys.includes(d.name));
+    synced.forEach(s => {
+      const slot = document.querySelector(`[onclick*="loadSave('${escHtml(s.name).replace(/'/g, "\\'")}')"]`);
+      const nameEl = (slot?.closest('.save-slot') || document.querySelector('.save-slot.current'))?.querySelector('.save-slot-name');
+      if (nameEl && !nameEl.querySelector('.cloud-badge')) {
+        nameEl.insertAdjacentHTML('afterbegin', '<span class="cloud-badge" style="font-size:.6rem;background:var(--accent);color:#fff;padding:1px 5px;border-radius:4px;margin-right:6px;vertical-align:middle">☁️</span>');
+      }
+    });
 
+    // Show cloud-only saves
+    const cloudOnly = data.filter(d => !localKeys.includes(d.name));
     if (cloudOnly.length > 0) {
-      html += '<p style="font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px">☁️ Cloud Only</p>';
+      let html = '<p style="font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px">☁️ Cloud Only</p>';
       html += cloudOnly.map(cs => {
         const d = new Date(cs.updated_at).toLocaleString();
         const safeName = escHtml(cs.name).replace(/'/g, "\\'");
@@ -118,9 +148,10 @@ async function loadCloudSavesIntoModal(localKeys) {
             </div>
           </div>`;
       }).join('');
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = '';
     }
-
-    container.innerHTML = html;
   } catch (e) {
     console.error('Failed to load cloud saves:', e);
     container.innerHTML = '<p style="font-size:.75rem;color:var(--warn);padding:8px 0">Failed to load cloud saves.</p>';
@@ -129,15 +160,12 @@ async function loadCloudSavesIntoModal(localKeys) {
 
 async function loadCloudSave(name) {
   if (!supabaseClient || !currentUser) return;
-  if (!confirm(`Load "${name}" from cloud? Current unsaved progress will be lost.`)) return;
   try {
     const { data, error } = await supabaseClient.from('inspections')
       .select('state').eq('user_id', currentUser.id).eq('name', name).single();
     if (error) throw error;
     state = data.state;
     currentSaveName = name;
-    autoSaveLocal();
-    // Also save to local named saves
     const saves = getSaves();
     saves[name] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
@@ -164,20 +192,23 @@ function closeSaveModal(e) {
   }
 }
 
-function saveNew() {
-  const name = document.getElementById('newSaveName').value.trim();
-  if (!name) { showToast('Enter a name for this save'); return; }
-  const saves = getSaves();
-  saves[name] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-  currentSaveName = name;
-  pushSaveToCloud(name, state);
+function newInspection() {
+  // Auto-save current work first
+  ensureSaveName();
+  autoSave();
+  // Reset to blank state
+  state = { info: {}, checks: {}, notes: {}, inputs: {}, summary: {} };
+  currentSaveName = null;
+  ensureSaveName();
+  autoSave();
+  renderSections();
+  loadInfoFields();
+  SECTIONS.forEach(s => updateBadge(s.id));
   closeSaveModal();
-  showToast('Saved!');
+  showToast('New inspection started');
 }
 
 function loadSave(name) {
-  if (!confirm(`Load "${name}"? Current unsaved progress will be lost.`)) return;
   const saves = getSaves();
   if (saves[name]) {
     state = JSON.parse(JSON.stringify(saves[name].data));
@@ -197,6 +228,16 @@ function deleteSave(name) {
   delete saves[name];
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
   deleteSaveFromCloud(name);
+  // If we deleted the current save, start fresh
+  if (name === currentSaveName) {
+    state = { info: {}, checks: {}, notes: {}, inputs: {}, summary: {} };
+    currentSaveName = null;
+    ensureSaveName();
+    autoSave();
+    renderSections();
+    loadInfoFields();
+    SECTIONS.forEach(s => updateBadge(s.id));
+  }
   showSaveModal();
 }
 
@@ -204,6 +245,7 @@ function resetAll() {
   if (!confirm('Reset all progress?')) return;
   state = { info: {}, checks: {}, notes: {}, inputs: {}, summary: {} };
   currentSaveName = null;
+  ensureSaveName();
   autoSave();
   renderSections();
   loadInfoFields();
@@ -213,7 +255,7 @@ function resetAll() {
 // Offline-first: localStorage is always the source of truth. Supabase is optional.
 // BYO model — users provide their own Supabase project URL and publishable key.
 // Auth uses email magic links. State is stored as JSONB in an "inspections" table,
-// one row per named save per user. Auto-save uses the reserved name "__autosave__".
+// one row per named save per user.
 // Changes are debounced (2s) before pushing to cloud. On load, cloud and local
 // are reconciled with conflict detection (newer version wins, user chooses).
 const BYO_CONFIG_KEY = 'rv_inspect_supabase';
@@ -377,19 +419,10 @@ function debouncedCloudSync() {
 }
 
 async function cloudSync() {
-  if (!supabaseClient || !currentUser) return;
+  if (!supabaseClient || !currentUser || !currentSaveName) return;
   setSyncStatus('syncing');
   try {
-    const { error } = await supabaseClient.from('inspections').upsert({
-      user_id: currentUser.id,
-      name: '__autosave__',
-      state: state
-    }, { onConflict: 'user_id,name' });
-    if (error) throw error;
-    // Also sync the current named save to cloud
-    if (currentSaveName) {
-      await pushSaveToCloud(currentSaveName, state);
-    }
+    await pushSaveToCloud(currentSaveName, state);
     lastSyncTime = Date.now();
     setSyncStatus('synced');
     updateCloudUI();
@@ -433,47 +466,55 @@ async function deleteSaveFromCloud(name) {
 async function reconcileOnLoad() {
   if (!supabaseClient || !currentUser) return;
   try {
-    // Check cloud autosave
-    const { data: cloudAuto } = await supabaseClient.from('inspections')
-      .select('state,updated_at').eq('user_id', currentUser.id).eq('name', '__autosave__').single();
-
-    if (cloudAuto) {
-      const localHasData = Object.keys(state.checks).length > 0;
-      if (!lastSyncTime && localHasData && Object.keys(cloudAuto.state?.checks || {}).length > 0) {
-        // Both have data, show conflict
-        pendingCloudAutosave = cloudAuto.state;
-        document.getElementById('conflictBanner').classList.add('visible');
-      } else if (!localHasData && Object.keys(cloudAuto.state?.checks || {}).length > 0) {
-        // Local is empty, just load cloud
-        state = cloudAuto.state;
-        autoSaveLocal();
-        renderSections();
-        loadInfoFields();
-        SECTIONS.forEach(s => updateBadge(s.id));
-      }
-    }
-
-    // Sync named saves from cloud to local
+    // Sync all named saves between cloud and local
     const { data: cloudSaves } = await supabaseClient.from('inspections')
       .select('name,state,updated_at').eq('user_id', currentUser.id).neq('name', '__autosave__');
 
     if (cloudSaves && cloudSaves.length > 0) {
       const localSaves = getSaves();
       let updated = false;
+
       for (const cs of cloudSaves) {
-        if (!localSaves[cs.name]) {
-          localSaves[cs.name] = { data: cs.state, ts: new Date(cs.updated_at).getTime() };
+        const cloudTs = new Date(cs.updated_at).getTime();
+        const local = localSaves[cs.name];
+        if (!local) {
+          // Cloud-only → pull to local
+          localSaves[cs.name] = { data: cs.state, ts: cloudTs };
           updated = true;
+        } else if (cloudTs > (local.ts || 0)) {
+          // Cloud is newer → check for conflict on current save
+          if (cs.name === currentSaveName && Object.keys(state.checks).length > 0) {
+            pendingCloudAutosave = cs.state;
+            document.getElementById('conflictBanner').classList.add('visible');
+          } else {
+            localSaves[cs.name] = { data: cs.state, ts: cloudTs };
+            updated = true;
+          }
         }
       }
+
       // Push local-only saves to cloud
       for (const [name, save] of Object.entries(localSaves)) {
         if (!cloudSaves.find(cs => cs.name === name)) {
           pushSaveToCloud(name, save.data);
         }
       }
-      if (updated) localStorage.setItem(STORAGE_KEY, JSON.stringify(localSaves));
+
+      if (updated) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(localSaves));
+        // If current save was updated from cloud, reload it
+        if (currentSaveName && localSaves[currentSaveName] && !pendingCloudAutosave) {
+          state = JSON.parse(JSON.stringify(localSaves[currentSaveName].data));
+          renderSections();
+          loadInfoFields();
+          SECTIONS.forEach(s => updateBadge(s.id));
+        }
+      }
     }
+
+    // Clean up legacy __autosave__ row if it exists
+    supabaseClient.from('inspections').delete()
+      .eq('user_id', currentUser.id).eq('name', '__autosave__').then(() => {});
 
     lastSyncTime = Date.now();
     setSyncStatus('synced');
@@ -483,16 +524,15 @@ async function reconcileOnLoad() {
   }
 }
 
-// Save to localStorage without triggering cloud sync (used during cloud load)
-function autoSaveLocal() {
-  localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
-}
-
 function loadCloudAutosave() {
   if (pendingCloudAutosave) {
     state = pendingCloudAutosave;
     pendingCloudAutosave = null;
-    autoSaveLocal();
+    const saves = getSaves();
+    if (currentSaveName) {
+      saves[currentSaveName] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+    }
     renderSections();
     loadInfoFields();
     SECTIONS.forEach(s => updateBadge(s.id));
@@ -503,7 +543,6 @@ function loadCloudAutosave() {
 function dismissConflict() {
   pendingCloudAutosave = null;
   document.getElementById('conflictBanner').classList.remove('visible');
-  // Push local version to cloud
   cloudSync();
 }
 
@@ -520,12 +559,220 @@ function handleAuthCallback() {
   }
 }
 
+// ====== DEVICE PAIRING ======
+const PAIR_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let pairCountdownInterval = null;
+let currentPairCode = null;
+
+function generateCode() {
+  const arr = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(arr, b => PAIR_CHARS[b % PAIR_CHARS.length]).join('');
+}
+
+function formatCode(code) {
+  return code.slice(0, 4) + '-' + code.slice(4);
+}
+
+async function generatePairingCode() {
+  if (!supabaseClient || !currentUser) return;
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session?.refresh_token) { showToast('Session error. Try signing out and back in.', true); return; }
+
+  // Delete any existing unclaimed codes for this user
+  await supabaseClient.from('device_links').delete()
+    .eq('user_id', currentUser.id).eq('claimed', false);
+
+  const code = generateCode();
+  const { error } = await supabaseClient.from('device_links').insert({
+    code,
+    refresh_token: session.refresh_token,
+    user_id: currentUser.id
+  });
+  if (error) { showToast('Failed to create pairing code.', true); console.error(error); return; }
+
+  currentPairCode = code;
+  document.getElementById('pairGenerateSection').style.display = 'none';
+  document.getElementById('pairCodeDisplay').style.display = 'block';
+  document.getElementById('pairCodeText').textContent = formatCode(code);
+
+  // QR code
+  loadQRLibrary().then(() => renderQRCode(code)).catch(() => {
+    document.getElementById('pairQR').innerHTML = '';
+  });
+
+  // Countdown
+  const expiresAt = Date.now() + 5 * 60 * 1000;
+  clearInterval(pairCountdownInterval);
+  updateCountdown(expiresAt);
+  pairCountdownInterval = setInterval(() => updateCountdown(expiresAt), 1000);
+}
+
+function updateCountdown(expiresAt) {
+  const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  const m = Math.floor(remaining / 60);
+  const s = remaining % 60;
+  document.getElementById('pairCountdown').textContent = remaining > 0
+    ? `Expires in ${m}:${s.toString().padStart(2, '0')}`
+    : 'Code expired';
+  if (remaining <= 0) {
+    clearInterval(pairCountdownInterval);
+    cancelDeviceLink();
+  }
+}
+
+function copyPairingCode() {
+  if (!currentPairCode) return;
+  navigator.clipboard.writeText(formatCode(currentPairCode)).then(() => {
+    showToast('Code copied!');
+  }).catch(() => {
+    showToast('Copy failed — tap code to select it.');
+  });
+}
+
+async function cancelDeviceLink() {
+  clearInterval(pairCountdownInterval);
+  if (supabaseClient && currentUser && currentPairCode) {
+    supabaseClient.from('device_links').delete()
+      .eq('user_id', currentUser.id).eq('code', currentPairCode).then(() => {});
+  }
+  currentPairCode = null;
+  document.getElementById('pairCodeDisplay').style.display = 'none';
+  document.getElementById('pairGenerateSection').style.display = 'block';
+  document.getElementById('pairQR').innerHTML = '';
+}
+
+async function claimDeviceLink() {
+  const input = document.getElementById('pairCodeInput');
+  const msgEl = document.getElementById('pairClaimMsg');
+  const code = input.value.toUpperCase().replace(/[-\s]/g, '');
+  if (code.length !== 8) { showCloudMsg(msgEl, 'Enter the 8-character code.', true); return; }
+
+  if (!supabaseClient) {
+    showCloudMsg(msgEl, 'Connect your Supabase project first (see setup below).', true);
+    return;
+  }
+
+  showCloudMsg(msgEl, 'Linking...', false);
+
+  try {
+    const { data, error } = await supabaseClient.from('device_links')
+      .select('refresh_token,user_id').eq('code', code).single();
+
+    if (error || !data) {
+      showCloudMsg(msgEl, 'Invalid or expired code.', true);
+      return;
+    }
+
+    // Use the refresh token to get a new session
+    const { data: authData, error: authError } = await supabaseClient.auth.refreshSession({
+      refresh_token: data.refresh_token
+    });
+
+    if (authError || !authData.session) {
+      showCloudMsg(msgEl, 'Failed to authenticate. Code may be expired.', true);
+      return;
+    }
+
+    // Mark as claimed (now authenticated as the same user)
+    await supabaseClient.from('device_links').update({ claimed: true }).eq('code', code);
+
+    input.value = '';
+    msgEl.className = 'cloud-msg';
+    showToast('Device linked!');
+    // onAuthStateChange will handle the rest (UI update, reconcile)
+  } catch (e) {
+    console.error('Claim error:', e);
+    showCloudMsg(msgEl, 'Something went wrong. Try again.', true);
+  }
+}
+
+// QR code library (loaded on demand)
+let qrLibLoaded = false;
+function loadQRLibrary() {
+  if (qrLibLoaded) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+    script.onload = () => { qrLibLoaded = true; resolve(); };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+function renderQRCode(code) {
+  if (typeof qrcode === 'undefined') return;
+  const container = document.getElementById('pairQR');
+  const baseUrl = window.location.href.split('#')[0].split('?')[0];
+  const config = loadBYOConfig();
+  let url = baseUrl + '?pair=' + code;
+  // Include Supabase credentials so Device B auto-connects
+  if (config) {
+    url += '&sb_url=' + encodeURIComponent(config.url) + '&sb_key=' + encodeURIComponent(config.key);
+  }
+  const qr = qrcode(0, 'M');
+  qr.addData(url);
+  qr.make();
+  container.innerHTML = qr.createSvgTag(4, 0);
+  // Style the SVG
+  const svg = container.querySelector('svg');
+  if (svg) {
+    svg.style.width = '180px';
+    svg.style.height = '180px';
+    svg.style.borderRadius = '8px';
+    svg.style.background = '#fff';
+    svg.style.padding = '8px';
+  }
+}
+
+// Handle ?pair= URL parameter (Device B opens QR link)
+function handlePairParam() {
+  const params = new URLSearchParams(window.location.search);
+  const pairCode = params.get('pair');
+  if (!pairCode) return;
+  // Auto-configure Supabase if credentials are in the URL
+  const sbUrl = params.get('sb_url');
+  const sbKey = params.get('sb_key');
+  // Clean the URL immediately (credentials should not linger)
+  history.replaceState(null, '', window.location.pathname);
+  // If already logged in, no need to pair
+  if (currentUser) return;
+  // Save Supabase config if provided and not already configured
+  if (sbUrl && sbKey && !loadBYOConfig()) {
+    localStorage.setItem(BYO_CONFIG_KEY, JSON.stringify({ url: sbUrl, key: sbKey }));
+    initSupabase();
+  }
+  // Wait for Supabase to init, then auto-fill and open modal
+  setTimeout(() => {
+    showCloudModal();
+    const input = document.getElementById('pairCodeInput');
+    if (input) {
+      input.value = formatCode(pairCode.toUpperCase().replace(/[-\s]/g, ''));
+    }
+  }, 500);
+}
+
 // Online/offline listeners
 window.addEventListener('online', () => {
   if (supabaseClient && currentUser) debouncedCloudSync();
 });
 
 // ====== INIT ======
+// Migrate legacy autosave (rv_inspect_autosave) into the unified saves system
+(function migrateLegacyAutosave() {
+  const legacy = localStorage.getItem('rv_inspect_autosave');
+  if (!legacy) return;
+  try {
+    const data = JSON.parse(legacy);
+    const saves = getSaves();
+    const name = (data.info?.name || '').trim() || 'Inspection 1';
+    if (!saves[name]) {
+      saves[name] = { data, ts: Date.now() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+    }
+  } catch (e) {}
+  localStorage.removeItem('rv_inspect_autosave');
+})();
+
 autoLoad();
 renderSections();
 loadInfoFields();
@@ -541,4 +788,15 @@ if (typeof window.supabase !== 'undefined') {
 // Service Worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  // Auto-reload when a new service worker activates (iOS PWA fix)
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') {
+        window.location.reload();
+      }
+    });
+  }
 }
+
+// Handle ?pair= URL param after init
+handlePairParam();

@@ -9,7 +9,7 @@
  * Bump CACHE_NAME whenever you change index.html or manifest.json so that
  * returning users pick up the new version instead of seeing stale cache.
  */
-const CACHE_NAME = 'rv-inspect-v8';
+const CACHE_NAME = 'rv-inspect-v10';
 const ASSETS = ['./index.html', './manifest.json', './checklist-data.js', './app.js', './cloud.js'];
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 
@@ -19,10 +19,14 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-  ));
-  self.clients.claim();
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+     .then(() => self.clients.matchAll().then(clients =>
+       clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' }))
+     ))
+  );
 });
 
 self.addEventListener('fetch', e => {

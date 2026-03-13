@@ -500,7 +500,11 @@ function updateProgress() {
 document.querySelectorAll('[data-info]').forEach(el => {
   el.addEventListener('input', () => {
     state.info[el.dataset.info] = el.value;
-    if (el.dataset.info === 'name') updateAppTitle();
+    if (el.dataset.info === 'name') {
+      updateAppTitle();
+      handleNameChange(el.value);
+      return;
+    }
     autoSave();
   });
 });
