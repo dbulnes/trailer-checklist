@@ -751,8 +751,22 @@ async function claimPairURL(pairUrl) {
   }
 }
 
-// Scan QR — opens camera (mobile) or file picker, then reads QR from the image
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// Scan QR — desktop: live camera overlay; mobile: camera capture / file picker
 function scanPairQR() {
+  if (!isMobile) {
+    // Desktop: live camera scanner overlay
+    closeCloudModal();
+    startScan(['qr_code'], 'Point camera at QR code...', 'QR scanning not available on this device.', async value => {
+      const url = value.trim();
+      showCloudModal();
+      await claimPairURL(url);
+      return true;
+    });
+    return;
+  }
+  // Mobile: file input with capture (opens camera, allows photo library too)
   const fileInput = document.getElementById('pairQRFileInput');
   fileInput.value = '';
   fileInput.onchange = async () => {
