@@ -880,7 +880,13 @@ if (typeof window.supabase !== 'undefined') {
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js').then(reg => {
+    // Check for updates every 60s and when app returns to foreground
+    setInterval(() => reg.update(), 60000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update();
+    });
+  }).catch(() => {});
   // Auto-reload when a new service worker activates (iOS PWA fix)
   navigator.serviceWorker.addEventListener('message', e => {
     if (e.data?.type === 'SW_UPDATED') {

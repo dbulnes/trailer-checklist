@@ -37,11 +37,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Stamp version and cache name
         run: |
-          HASH=$(cat index.html css/styles.css js/app.js js/checklist-data.js js/cloud.js manifest.json | sha256sum | cut -c1-8)
+          # Keep file list in sync with ASSETS array in service-worker.js
+          HASH=$(cat index.html css/styles.css js/app.js js/checklist-data.js js/cloud.js manifest.json service-worker.js | sha256sum | cut -c1-8)
           sed -i "s/const CACHE_NAME = .*/const CACHE_NAME = 'rv-inspect-${HASH}';/" service-worker.js
+          grep -q "rv-inspect-${HASH}" service-worker.js || { echo "ERROR: CACHE_NAME stamp failed"; exit 1; }
           SHORT_SHA=$(git rev-parse --short HEAD)
           PKG_VERSION=$(node -p "require('./package.json').version")
           sed -i "s/const APP_VERSION = .*/const APP_VERSION = '${PKG_VERSION} (${SHORT_SHA})';/" js/app.js
+          grep -q "${SHORT_SHA}" js/app.js || { echo "ERROR: APP_VERSION stamp failed"; exit 1; }
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

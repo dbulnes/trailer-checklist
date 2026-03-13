@@ -10,6 +10,7 @@
  * The value below is used for local development only.
  */
 const CACHE_NAME = 'rv-inspect-v32';
+// Keep in sync with CI hash input list in .github/workflows/ci.yml
 const ASSETS = ['./index.html', './manifest.json', './css/styles.css', './js/checklist-data.js', './js/app.js', './js/cloud.js'];
 
 
@@ -27,7 +28,7 @@ self.addEventListener('activate', e => {
     }).then(hadPreviousCache => {
       return self.clients.claim().then(() => {
         if (hadPreviousCache) {
-          self.clients.matchAll().then(clients =>
+          return self.clients.matchAll().then(clients =>
             clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' }))
           );
         }
