@@ -9,7 +9,7 @@
  * CACHE_NAME is automatically replaced with a content hash during CI deploy.
  * The value below is used for local development only.
  */
-const CACHE_NAME = 'rv-inspect-v31';
+const CACHE_NAME = 'rv-inspect-v32';
 const ASSETS = ['./index.html', './manifest.json', './css/styles.css', './js/checklist-data.js', './js/app.js', './js/cloud.js'];
 
 
