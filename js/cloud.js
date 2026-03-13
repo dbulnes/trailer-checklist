@@ -20,13 +20,6 @@ function refreshUI() {
   SECTIONS.forEach(s => updateBadge(s.id));
 }
 
-// Deep-clone data into global state and refresh the UI.
-// Used when pulling state from cloud or loading a save.
-function loadState(data) {
-  state = JSON.parse(JSON.stringify(data));
-  ensureByField();
-  refreshUI();
-}
 
 // Ensure currentSaveName is set. If the checklist has no name, generate one.
 function ensureSaveName() {
@@ -526,9 +519,10 @@ async function cloudSyncNow() {
 
     if (localUpdated) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-      // Reload current save if it was updated
       if (currentSaveName && saves[currentSaveName]) {
-        loadState(saves[currentSaveName].data);
+        state = JSON.parse(JSON.stringify(saves[currentSaveName].data));
+        ensureByField();
+        patchUI();
       }
     }
 
@@ -571,7 +565,9 @@ async function pushSaveToCloud(name, data) {
         saves[name] = { data: merged, ts: cloudTs };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
         if (name === currentSaveName) {
-          loadState(merged);
+          state = JSON.parse(JSON.stringify(merged));
+          ensureByField();
+          patchUI();
         }
         return;
       }
@@ -627,9 +623,11 @@ async function reconcileOnLoad() {
 
       if (updated) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(localSaves));
-        // If current save was updated from cloud, reload it
+        // If current save was updated from cloud, patch UI without re-rendering
         if (currentSaveName && localSaves[currentSaveName]) {
-          loadState(localSaves[currentSaveName].data);
+          state = JSON.parse(JSON.stringify(localSaves[currentSaveName].data));
+          ensureByField();
+          patchUI();
         }
       }
     }
