@@ -1,6 +1,6 @@
 {
   "name": "rv-inspect",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "PWA for pre-purchase RV and camper trailer inspections",
