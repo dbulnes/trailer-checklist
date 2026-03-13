@@ -135,9 +135,11 @@ PDF export uses a Supabase Edge Function for server-side generation. To enable i
    ```bash
    supabase functions deploy generate-pdf
    ```
-5. That's it — tapping **Export PDF** in the app will now generate a real PDF file, save it to Supabase Storage, and download it to your device.
+5. That's it — tapping **Export PDF** in the app will now generate a real PDF file, save it to Supabase Storage, and download it to your device. On mobile, the PDF opens in the native share sheet (Save to Files, AirDrop, etc.).
 
 If the Edge Function is not deployed or the user isn't signed in, the app falls back to an HTML preview.
+
+**Troubleshooting**: Check Edge Function logs in the Supabase dashboard under **Edge Functions → generate-pdf → Logs**. The function exposes upload errors via the `X-PDF-Error` response header.
 
 ### How it works
 

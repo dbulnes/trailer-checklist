@@ -17,6 +17,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Expose-Headers": "X-PDF-URL, X-PDF-Path, X-PDF-Error",
 };
 
 Deno.serve(async (req) => {
@@ -345,7 +346,7 @@ Deno.serve(async (req) => {
     const storagePath = `${user.id}/${filename}`;
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     const { error: uploadError } = await adminClient.storage
@@ -356,8 +357,10 @@ Deno.serve(async (req) => {
       });
 
     let signedUrl = "";
+    let uploadErrorMsg = "";
     if (uploadError) {
-      console.error("Storage upload error:", uploadError);
+      uploadErrorMsg = uploadError.message || JSON.stringify(uploadError);
+      console.error("Storage upload error:", uploadErrorMsg);
     } else {
       const { data } = await adminClient.storage
         .from(BUCKET)
@@ -372,6 +375,7 @@ Deno.serve(async (req) => {
         "Content-Disposition": `attachment; filename="${filename}"`,
         "X-PDF-URL": signedUrl || "",
         "X-PDF-Path": storagePath,
+        "X-PDF-Error": uploadErrorMsg,
       },
     });
   } catch (e) {

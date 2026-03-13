@@ -905,11 +905,26 @@ async function exportPDF() {
           body: JSON.stringify(d),
         });
         if (resp.ok) {
-          const rawBlob = await resp.blob();
-          const blob = rawBlob.type === 'application/pdf' ? rawBlob : new Blob([rawBlob], { type: 'application/pdf' });
-          const filename = (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection').replace(/ /g, '_') + '.pdf';
-          downloadBlob(blob, filename);
           const pdfUrl = resp.headers.get('X-PDF-URL');
+          const pdfError = resp.headers.get('X-PDF-Error');
+          if (pdfError) showToast('PDF storage: ' + pdfError, true);
+          const filename = (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection').replace(/ /g, '_') + '.pdf';
+
+          // On mobile, fetch from signed URL (Storage serves proper Content-Type)
+          let blob;
+          if (pdfUrl && navigator.share) {
+            try {
+              const storageResp = await fetch(pdfUrl);
+              if (storageResp.ok) blob = await storageResp.blob();
+            } catch (e) {
+              console.warn('Signed URL fetch failed, using response body:', e);
+            }
+          }
+          if (!blob) {
+            const rawBlob = await resp.blob();
+            blob = rawBlob.type === 'application/pdf' ? rawBlob : new Blob([rawBlob], { type: 'application/pdf' });
+          }
+          downloadBlob(blob, filename);
           showToast(pdfUrl ? 'PDF saved and downloaded' : 'PDF downloaded');
           return;
         }
