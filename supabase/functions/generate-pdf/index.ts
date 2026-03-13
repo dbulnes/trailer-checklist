@@ -340,20 +340,37 @@ Deno.serve(async (req) => {
 
     // ---- Serialize PDF ----
     const pdfBytes = await doc.save();
-    const filename = `${(title.replace(/[^a-zA-Z0-9 _-]/g, "") || "inspection").replace(/ /g, "_")}.pdf`;
+    const baseName = (title.replace(/[^a-zA-Z0-9 _-]/g, "") || "inspection").replace(/ /g, "_");
+    const MAX_VERSIONS = 5;
 
-    // ---- Save to Supabase Storage ----
-    const storagePath = `${user.id}/${filename}`;
+    // ---- Save to Supabase Storage (versioned, up to 5 per checklist) ----
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const folder = `${user.id}/${baseName}`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `${baseName}_${timestamp}.pdf`;
+    const storagePath = `${folder}/${filename}`;
+
+    // List existing versions for this checklist
+    const { data: existing } = await adminClient.storage
+      .from(BUCKET)
+      .list(folder, { sortBy: { column: "created_at", order: "asc" } });
+
+    // Delete oldest versions if at the limit
+    if (existing && existing.length >= MAX_VERSIONS) {
+      const toDelete = existing.slice(0, existing.length - MAX_VERSIONS + 1);
+      await adminClient.storage
+        .from(BUCKET)
+        .remove(toDelete.map((f: { name: string }) => `${folder}/${f.name}`));
+    }
+
     const { error: uploadError } = await adminClient.storage
       .from(BUCKET)
       .upload(storagePath, new Blob([pdfBytes], { type: "application/pdf" }), {
         contentType: "application/pdf",
-        upsert: true,
       });
 
     let signedUrl = "";
