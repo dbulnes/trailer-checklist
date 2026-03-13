@@ -31,6 +31,7 @@ A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspecti
 
 - **Node.js** >= 18 (for running tests; the app itself has no build step)
 - Any static file server (Python, `npx serve`, etc.)
+- **Supabase CLI** (optional, for deploying Edge Functions): `brew install supabase/tap/supabase`
 
 ### Run Locally
 
