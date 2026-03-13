@@ -751,8 +751,21 @@ async function claimPairURL(pairUrl) {
   }
 }
 
+// jsQR library — pure JS QR decoder, works on all browsers (loaded on demand)
+let jsQRLoaded = false;
+function loadJsQR() {
+  if (jsQRLoaded) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    script.onload = () => { jsQRLoaded = true; resolve(); };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
 // Scan QR — opens file picker (camera on mobile, file upload on desktop),
-// then extracts QR code from the selected image via BarcodeDetector.
+// then extracts QR code from the selected image via jsQR.
 function scanPairQR() {
   const fileInput = document.getElementById('pairQRFileInput');
   fileInput.value = '';
@@ -763,23 +776,27 @@ function scanPairQR() {
     showCloudMsg(msgEl, 'Reading QR code...', false);
 
     try {
-      if (!(await ensureBarcodeDetector())) {
-        showCloudMsg(msgEl, 'QR reading not available on this device.', true);
-        return;
-      }
+      await loadJsQR();
       const img = new Image();
       img.src = URL.createObjectURL(file);
       await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
-      const detector = new BarcodeDetector({ formats: ['qr_code'] });
-      const barcodes = await detector.detect(img);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
       URL.revokeObjectURL(img.src);
 
-      if (barcodes.length === 0) {
-        showCloudMsg(msgEl, 'No QR code found in image. Try a clearer screenshot.', true);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+      if (!code) {
+        showCloudMsg(msgEl, 'No QR code found in image. Try a clearer photo.', true);
         return;
       }
 
-      await claimPairURL(barcodes[0].rawValue.trim());
+      await claimPairURL(code.data.trim());
     } catch (e) {
       console.error('QR scan error:', e);
       showCloudMsg(msgEl, 'Failed to read QR code from image.', true);
