@@ -228,7 +228,7 @@ async function resetAll() {
 // Auth uses email magic links. State is stored as JSONB in an "inspections" table,
 // one row per named save per user.
 // Changes are debounced (2s) before pushing to cloud. On load, cloud and local
-// are reconciled with conflict detection (newer version wins, user chooses).
+// are reconciled automatically (newest timestamp wins).
 const BYO_CONFIG_KEY = 'rv_inspect_supabase';
 let supabaseClient = null;
 let currentUser = null;
@@ -410,17 +410,76 @@ async function cloudSync() {
 }
 
 async function cloudSyncNow() {
+  if (!supabaseClient || !currentUser) return;
+  setSyncStatus('syncing');
   try {
-    await cloudSync();
-    // Also sync all named saves
+    // Fetch all cloud saves in one query
+    const { data: cloudSaves, error } = await supabaseClient.from('inspections')
+      .select('name,state,updated_at')
+      .eq('user_id', currentUser.id).neq('name', '__autosave__');
+    if (error) throw error;
+
+    const cloudMap = {};
+    for (const cs of (cloudSaves || [])) {
+      cloudMap[cs.name] = { state: cs.state, ts: new Date(cs.updated_at).getTime() };
+    }
+
     const saves = getSaves();
-    await Promise.all(Object.entries(saves).map(([name, save]) => pushSaveToCloud(name, save.data)));
+    let localUpdated = false;
+    const toPush = [];
+
+    for (const [name, save] of Object.entries(saves)) {
+      const cloud = cloudMap[name];
+      if (!cloud) {
+        // Local-only → push
+        toPush.push({ name, data: save.data });
+      } else if (cloud.ts > (save.ts || 0)) {
+        // Cloud is newer → pull
+        saves[name] = { data: cloud.state, ts: cloud.ts };
+        localUpdated = true;
+      } else if ((save.ts || 0) > cloud.ts) {
+        // Local is newer → push
+        toPush.push({ name, data: save.data });
+      }
+      // Equal timestamps → skip, already in sync
+    }
+
+    // Cloud-only saves → pull
+    for (const [name, cloud] of Object.entries(cloudMap)) {
+      if (!saves[name]) {
+        saves[name] = { data: cloud.state, ts: cloud.ts };
+        localUpdated = true;
+      }
+    }
+
+    if (localUpdated) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+      // Reload current save if it was updated
+      if (currentSaveName && saves[currentSaveName]) {
+        state = JSON.parse(JSON.stringify(saves[currentSaveName].data));
+        renderSections();
+        loadInfoFields();
+        SECTIONS.forEach(s => updateBadge(s.id));
+      }
+    }
+
+    // Push all local-newer saves in parallel (simple upserts, no pre-check needed)
+    await Promise.all(toPush.map(({ name, data }) =>
+      supabaseClient.from('inspections').upsert({
+        user_id: currentUser.id, name, state: data
+      }, { onConflict: 'user_id,name' }).catch(e => console.error('Push error:', name, e))
+    ));
+
     // Sync photos both directions (push first, then pull)
     await pushAllPhotosToCloud();
     await pullPhotosFromCloud();
+    lastSyncTime = Date.now();
+    setSyncStatus('synced');
+    updateCloudUI();
     showToast('Sync complete');
   } catch (e) {
     console.error('Full sync error:', e);
+    setSyncStatus('error');
     showToast('Sync failed', true);
   }
 }
@@ -428,22 +487,21 @@ async function cloudSyncNow() {
 async function pushSaveToCloud(name, data) {
   if (!supabaseClient || !currentUser) return;
   try {
-    const saves = getSaves();
-    const localTs = saves[name]?.ts || Date.now();
+    const localTs = getSaves()[name]?.ts || Date.now();
     // Check if cloud version is newer before overwriting
     const { data: existing } = await supabaseClient.from('inspections')
-      .select('updated_at')
+      .select('state,updated_at')
       .eq('user_id', currentUser.id).eq('name', name)
       .maybeSingle();
     if (existing) {
       const cloudTs = new Date(existing.updated_at).getTime();
       if (cloudTs > localTs) {
         // Cloud is newer — don't overwrite, pull it instead
-        saves[name] = { data: (await supabaseClient.from('inspections')
-          .select('state').eq('user_id', currentUser.id).eq('name', name).single()).data.state, ts: cloudTs };
+        const saves = getSaves();
+        saves[name] = { data: existing.state, ts: cloudTs };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
         if (name === currentSaveName) {
-          state = JSON.parse(JSON.stringify(saves[name].data));
+          state = JSON.parse(JSON.stringify(existing.state));
           renderSections();
           loadInfoFields();
           SECTIONS.forEach(s => updateBadge(s.id));
@@ -456,9 +514,6 @@ async function pushSaveToCloud(name, data) {
       name: name,
       state: data
     }, { onConflict: 'user_id,name' });
-    // Update local ts to match what the server will set
-    saves[name] = { data: JSON.parse(JSON.stringify(data)), ts: Date.now() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
   } catch (e) { console.error('Cloud push error:', e); }
 }
 
@@ -491,10 +546,12 @@ async function reconcileOnLoad() {
         }
       }
 
-      // Push local-only saves to cloud
+      // Push local-only saves to cloud (no pre-check needed — they don't exist in cloud)
       for (const [name, save] of Object.entries(localSaves)) {
         if (!cloudSaves.find(cs => cs.name === name)) {
-          pushSaveToCloud(name, save.data);
+          supabaseClient.from('inspections').upsert({
+            user_id: currentUser.id, name, state: save.data
+          }, { onConflict: 'user_id,name' }).catch(e => console.error('Push error:', name, e));
         }
       }
 

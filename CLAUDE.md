@@ -21,7 +21,7 @@ A service worker (`service-worker.js`) caches assets for offline use. **Bump `CA
 
 - **`checklist-data.js`** — The `SECTIONS` array: 23 sections, each with items that can be plain strings or objects with `{text, critical, input, inputLabel}` properties. Source of truth for all checklist content.
 - **`app.js`** — Core app logic: state management, rendering, interactions (tap cycle, notes, inputs), info fields, photos (IndexedDB + Supabase Storage sync), VIN scanner, summary view.
-- **`cloud.js`** — Save/load system, Supabase cloud sync, auth, conflict resolution, init sequence.
+- **`cloud.js`** — Save/load system, Supabase cloud sync, auth, last-write-wins reconciliation, init sequence.
 
 Key subsystems:
 - **State object**: `{ info, checks, notes, inputs, summary }` — serialized to localStorage for auto-save and named saves.
@@ -43,7 +43,7 @@ Optional cloud persistence via user-provided Supabase project (BYO model — no 
 - **Auth**: Email magic link via Supabase Auth.
 - **Schema**: `inspections` table (JSONB state, one row per named save per user) + `inspection-photos` Storage bucket + `device_links` table (short-lived pairing codes).
 - **Photo sync**: Photos uploaded to Supabase Storage on capture, downloaded on save load. Path: `{user_id}/{inspection_name}/{item_key}_{index}.jpg`.
-- **Sync**: Debounced (2s) upserts on every state change. On load, cloud and local are reconciled with conflict detection.
+- **Sync**: Debounced (2s) upserts on every state change. Newest timestamp always wins — pushes check cloud `updated_at` before overwriting, pulls auto-accept cloud-newer data.
 - **Config**: Stored in `rv_inspect_supabase` localStorage key (`{ url, key }`).
 - **Device pairing**: Device A generates an 8-char code (stored in `device_links` with 5-min TTL). Device B enters the code or scans a QR to authenticate via refresh token. QR URL includes `sb_url` and `sb_key` params so Device B auto-configures Supabase. QR rendered via `qrcode-generator` library loaded on demand.
 - **Service worker**: CDN scripts (Supabase JS, barcode polyfill, qrcode-generator) use network-first strategy; Supabase API calls bypass the cache entirely. On activation, SW posts `SW_UPDATED` message to all clients; the page auto-reloads if it was controlled by a previous SW (iOS PWA fix).
