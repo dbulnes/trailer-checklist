@@ -9,8 +9,8 @@
  * Bump CACHE_NAME whenever you change index.html or manifest.json so that
  * returning users pick up the new version instead of seeing stale cache.
  */
-const CACHE_NAME = 'rv-inspect-v29';
-const ASSETS = ['./index.html', './manifest.json', './checklist-data.js', './app.js', './cloud.js'];
+const CACHE_NAME = 'rv-inspect-v30';
+const ASSETS = ['./index.html', './manifest.json', './css/styles.css', './js/checklist-data.js', './js/app.js', './js/cloud.js'];
 
 
 self.addEventListener('install', e => {

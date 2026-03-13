@@ -1,0 +1,11 @@
+{
+  "name": "rv-inspect",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA for pre-purchase RV and camper trailer inspections",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "lint": "node tests/lint.js"
+  }
+}

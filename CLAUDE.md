@@ -4,7 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RV Inspect — self-contained PWA for pre-purchase RV and camper trailer inspections. Users can name each checklist (e.g. "2021 Micro Minnie 1708FB") via a field in the header. No build tools, no dependencies, no framework — just static files served directly.
+RV Inspect — self-contained PWA for pre-purchase RV and camper trailer inspections. Users can name each checklist (e.g. "2021 Micro Minnie 1708FB") via a field in the header. No build tools, no framework — just static files served directly. Deployed via GitHub Pages.
+
+## Project Structure
+
+```
+├── css/
+│   └── styles.css              # All app styles (extracted from index.html)
+├── js/
+│   ├── app.js                  # Core app logic: state, rendering, interactions, photos, VIN scanner
+│   ├── checklist-data.js       # SECTIONS array: checklist content source of truth
+│   └── cloud.js                # Save/load, Supabase sync, auth, init sequence
+├── docs/
+│   ├── Micro Minnie Inspection Checklist.pdf   # Source PDF
+│   ├── rv-inspection-checklist.md              # Markdown checklist reference
+│   └── setup.sql                               # Supabase schema setup
+├── tests/
+│   ├── checklist-data.test.js  # Validates SECTIONS structure and content
+│   ├── structure.test.js       # Validates file structure, references, PWA config
+│   └── lint.js                 # Basic HTML/JS/CSS lint checks
+├── .github/workflows/
+│   └── ci.yml                  # CI (test + lint) and GitHub Pages deploy
+├── index.html                  # App markup (references css/ and js/)
+├── manifest.json               # PWA manifest
+├── service-worker.js           # SW with cache strategies (must stay at root for scope)
+└── package.json                # Test scripts (ESM, no runtime dependencies)
+```
 
 ## Running Locally
 
@@ -13,15 +38,32 @@ python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
-A service worker (`service-worker.js`) caches assets for offline use. **Bump `CACHE_NAME` in `service-worker.js`** whenever you change any `.js` or `.html` file, otherwise returning users will see stale cached versions.
+A service worker (`service-worker.js`) caches assets for offline use. **Bump `CACHE_NAME` in `service-worker.js`** whenever you change any `.js`, `.css`, or `.html` file, otherwise returning users will see stale cached versions.
+
+## Testing
+
+Tests use Node.js built-in test runner (no dependencies needed):
+
+```bash
+npm test        # Run unit/structure tests
+npm run lint    # Run lint checks
+```
+
+Tests validate: checklist data integrity, project file structure, index.html references, service worker asset list, manifest.json fields, JS syntax, and HTML structure.
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to main:
+1. **test** — `npm test` + `npm run lint`
+2. **deploy** — Deploys to GitHub Pages on main branch (only after tests pass)
 
 ## Architecture
 
-`index.html` has markup + CSS. JavaScript is split across three files:
+`index.html` has markup only. CSS is in `css/styles.css`. JavaScript is split across three files in `js/`:
 
-- **`checklist-data.js`** — The `SECTIONS` array: 23 sections, each with items that can be plain strings or objects with `{text, critical, input, inputLabel}` properties. Source of truth for all checklist content.
-- **`app.js`** — Core app logic: state management, rendering, interactions (tap cycle, notes, inputs), info fields, photos (IndexedDB + Supabase Storage sync), VIN scanner, summary view.
-- **`cloud.js`** — Save/load system, Supabase cloud sync, auth, last-write-wins reconciliation, init sequence.
+- **`js/checklist-data.js`** — The `SECTIONS` array: 23 sections, each with items that can be plain strings or objects with `{text, critical, input, inputLabel}` properties.
+- **`js/app.js`** — Core app logic: state management, rendering, interactions (tap cycle, notes, inputs), info fields, photos (IndexedDB + Supabase Storage sync), VIN scanner, summary view.
+- **`js/cloud.js`** — Save/load system, Supabase cloud sync, auth, last-write-wins reconciliation, init sequence.
 
 Key subsystems:
 - **State object**: `{ info, checks, notes, inputs, summary }` — serialized to localStorage for auto-save and named saves.
@@ -29,11 +71,6 @@ Key subsystems:
 - **VIN scanner**: Uses `BarcodeDetector` API with a WASM polyfill for iOS (loaded on demand from CDN).
 - **Check cycle**: Each item cycles through `unchecked → ok → issue → na` on tap.
 - **Save/load**: Named saves in `rv_inspect_saves` localStorage key; auto-save in `rv_inspect_autosave`. `currentSaveName` tracks the active save so auto-save updates it too.
-
-Supporting files:
-- `manifest.json` — PWA manifest for home screen install
-- `service-worker.js` — Service worker with cache-first and network-first strategies
-- `Micro Minnie Inspection Checklist.pdf` — Source PDF the original checklist was derived from
 
 ## Cloud Sync (Supabase)
 
@@ -50,7 +87,8 @@ Optional cloud persistence via user-provided Supabase project (BYO model — no 
 
 ## Key Conventions
 
-- All commits must use author: `dbulnes <bulnes.david@gmail.com>`
+- All commits must use author: `dbulnes <d@vidbuln.es>`
 - No build step — edit files directly and test in browser
+- When adding/moving files: update service-worker.js ASSETS array and bump CACHE_NAME
 - External dependencies (all via CDN): Supabase JS client, barcode-detector polyfill, qrcode-generator (all loaded on demand except Supabase JS)
 - Mobile-first: test changes at phone viewport widths

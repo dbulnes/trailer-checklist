@@ -25,13 +25,49 @@ A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspecti
 3. Tap **"Add to Home Screen"**
 4. Done — launches fullscreen like a native app
 
-## Run Locally
+## Development Setup
+
+### Prerequisites
+
+- **Node.js** >= 18 (for running tests; the app itself has no build step)
+- Any static file server (Python, `npx serve`, etc.)
+
+### Run Locally
 
 ```bash
-# Any static file server works
+# Serve the app
 python3 -m http.server 8080
 # Open http://localhost:8080
 ```
+
+### Run Tests
+
+```bash
+npm test        # Unit and structure tests (Node.js built-in test runner)
+npm run lint    # HTML, JS, and CSS lint checks
+```
+
+No `npm install` needed — tests use only Node.js built-in modules (no dependencies).
+
+### Project Structure
+
+```
+├── css/styles.css              # All app styles
+├── js/
+│   ├── app.js                  # Core app logic
+│   ├── checklist-data.js       # Checklist content (SECTIONS array)
+│   └── cloud.js                # Save/load, Supabase sync, auth
+├── docs/                       # Reference docs and SQL setup
+├── tests/                      # Tests (Node.js built-in test runner)
+├── .github/workflows/ci.yml    # CI + GitHub Pages deploy
+├── index.html                  # App markup
+├── manifest.json               # PWA manifest
+└── service-worker.js           # Offline caching (must be at root for scope)
+```
+
+### CI/CD
+
+Push to `main` triggers GitHub Actions: tests run first, then the site deploys to GitHub Pages.
 
 ## Cloud Sync (Optional)
 
@@ -40,7 +76,7 @@ You can optionally sync your inspections across devices using [Supabase](https:/
 ### Setup
 
 1. Create a free Supabase project at https://supabase.com
-2. In your Supabase dashboard, go to **SQL Editor** and run the contents of [`setup.sql`](setup.sql) — this creates all tables, storage, and security policies in one step
+2. In your Supabase dashboard, go to **SQL Editor** and run the contents of [`setup.sql`](docs/setup.sql) — this creates all tables, storage, and security policies in one step
 3. In Supabase **Authentication > Settings**, make sure Email auth is enabled (magic link is on by default)
 4. In Supabase **Authentication > URL Configuration**:
    - Set **Site URL** to your app URL (e.g. `https://yourusername.github.io/trailer-checklist/`)
@@ -76,7 +112,7 @@ Instead of signing into email on every device, you can pair a second device usin
 
 ## Based On
 
-The default checklist items are based on the included [Micro Minnie Inspection Checklist.pdf](Micro%20Minnie%20Inspection%20Checklist.pdf), a comprehensive pre-purchase inspection guide that covers most RV and camper trailer systems.
+The default checklist items are based on the included [Micro Minnie Inspection Checklist.pdf](docs/Micro%20Minnie%20Inspection%20Checklist.pdf), a comprehensive pre-purchase inspection guide that covers most RV and camper trailer systems.
 
 ## License
 
