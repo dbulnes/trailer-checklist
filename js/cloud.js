@@ -751,20 +751,8 @@ async function claimPairURL(pairUrl) {
   }
 }
 
-// Live camera QR scan using the scanner overlay
+// Scan QR — opens camera (mobile) or file picker, then reads QR from the image
 function scanPairQR() {
-  closeCloudModal();
-  const msgEl = document.getElementById('pairClaimMsg');
-  startScan(['qr_code'], 'Point camera at QR code...', 'QR scanning not available on this device.', async value => {
-    const url = value.trim();
-    showCloudModal();
-    await claimPairURL(url);
-    return true;
-  });
-}
-
-// Upload QR image from file picker
-function uploadPairQR() {
   const fileInput = document.getElementById('pairQRFileInput');
   fileInput.value = '';
   fileInput.onchange = async () => {
@@ -793,7 +781,7 @@ function uploadPairQR() {
       const value = barcodes[0].rawValue.trim();
       await claimPairURL(value);
     } catch (e) {
-      console.error('QR upload error:', e);
+      console.error('QR scan error:', e);
       showCloudMsg(msgEl, 'Failed to read QR code from image.', true);
     }
   };

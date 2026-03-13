@@ -127,11 +127,8 @@
       </div>
       <div class="pair-divider">or link from another device</div>
       <div id="pairClaimSection">
-        <div style="display:flex;gap:8px">
-          <button class="btn" style="flex:1;justify-content:center;padding:10px" onclick="scanPairQR()">📷 Scan QR</button>
-          <button class="btn" style="flex:1;justify-content:center;padding:10px" onclick="uploadPairQR()">🖼️ Upload QR</button>
-        </div>
-        <input type="file" id="pairQRFileInput" accept="image/*" style="display:none">
+        <button class="btn" style="width:100%;justify-content:center;padding:10px" onclick="scanPairQR()">📷 Scan QR</button>
+        <input type="file" id="pairQRFileInput" accept="image/*" capture="environment" style="display:none">
         <div class="cloud-msg" id="pairClaimMsg"></div>
       </div>
       <hr class="cloud-divider">
