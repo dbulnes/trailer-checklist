@@ -318,12 +318,6 @@ body:has(.modal-overlay.show), body:has(.confirm-overlay.show), body:has(.lightb
 .cloud-msg.error { background: #2a1015; color: var(--warn); }
 .cloud-msg.visible { display: block; }
 /* Device pairing */
-.pair-code-display {
-  font-family: 'SF Mono', 'Menlo', monospace; font-size: 1.8rem; font-weight: 700;
-  letter-spacing: 4px; text-align: center; color: var(--accent);
-  padding: 16px; background: var(--surface2); border-radius: var(--radius);
-  margin: 12px 0; user-select: all;
-}
 .pair-countdown { font-size: .75rem; color: var(--text2); text-align: center; }
 .pair-qr { display: flex; justify-content: center; margin: 12px 0; }
 .pair-qr canvas, .pair-qr img { border-radius: 8px; }
@@ -513,7 +507,6 @@ body:has(.modal-overlay.show), body:has(.confirm-overlay.show), body:has(.lightb
       </div>
       <div id="pairCodeDisplay" style="display:none">
         <p style="font-size:.8rem;color:var(--text2);text-align:center;margin-bottom:4px">Scan this QR or share the link with your other device:</p>
-        <div class="pair-code-display" id="pairCodeText"></div>
         <div class="pair-qr" id="pairQR"></div>
         <p class="pair-countdown" id="pairCountdown"></p>
         <div style="display:flex;gap:8px;margin-top:8px">

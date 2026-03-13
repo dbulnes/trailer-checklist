@@ -547,10 +547,6 @@ function generateCode() {
   return Array.from(arr, b => PAIR_CHARS[b % PAIR_CHARS.length]).join('');
 }
 
-function formatCode(code) {
-  return code.slice(0, 4) + '-' + code.slice(4);
-}
-
 async function generatePairingCode() {
   if (!supabaseClient || !currentUser) return;
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -573,8 +569,6 @@ async function generatePairingCode() {
   currentPairCode = code;
   document.getElementById('pairGenerateSection').style.display = 'none';
   document.getElementById('pairCodeDisplay').style.display = 'block';
-  document.getElementById('pairCodeText').textContent = formatCode(code);
-
   // QR code
   loadQRLibrary().then(() => renderQRCode(code)).catch(() => {
     document.getElementById('pairQR').innerHTML = '';
