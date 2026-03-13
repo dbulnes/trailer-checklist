@@ -61,7 +61,8 @@ No `npm install` needed — tests use only Node.js built-in modules (no dependen
 ├── .github/workflows/ci.yml    # CI + GitHub Pages deploy
 ├── index.html                  # App markup
 ├── manifest.json               # PWA manifest
-└── service-worker.js           # Offline caching (must be at root for scope)
+├── service-worker.js           # Offline caching (must be at root for scope)
+└── version.txt                 # Deploy version stamp (for auto-refresh)
 ```
 
 ### CI/CD
@@ -71,8 +72,12 @@ Push to `main` triggers GitHub Actions: tests run first, then the site deploys t
 At deploy time, CI automatically:
 - Stamps `CACHE_NAME` in `service-worker.js` with a content hash of all cached files (ensures returning users get fresh assets)
 - Stamps `APP_VERSION` in `js/app.js` with the `package.json` version + git short hash (e.g. `1.0.0 (60dc5dd)`)
+- Writes `version.txt` with the same version string (used for auto-refresh detection)
+- Validates that both stamps succeeded (fails the build if `sed` didn't match)
 
 The deployed version is visible in the app under **☁️ Cloud Sync → App Info**. You can cross-reference the commit hash with `git log` to know exactly what's deployed.
+
+**Auto-refresh**: The app polls `version.txt` every 30s and on foreground resume. When a new deploy is detected, it automatically clears the cache and reloads. A manual **Force Refresh** button is also available under App Info.
 
 ## Cloud Sync (Optional)
 
@@ -101,7 +106,7 @@ Instead of signing into email on every device, you can pair a second device usin
 
 1. On **Device A** (already signed in): tap ☁️ → **Link Another Device** → a QR code is shown (valid for 5 minutes)
    - Optionally check **"Allow linked device to pair others"** to let Device B generate its own pairing codes
-2. On **Device B**: tap ☁️ → **Scan or Upload QR Code** (opens camera on mobile, file picker on desktop) — this auto-configures Supabase and signs in
+2. On **Device B**: tap ☁️ → **Scan QR** (opens camera on mobile, file picker on desktop) — this auto-configures Supabase and signs in
 3. Device B is now signed in as the same user — no email or manual setup required
 4. By default, Device B **cannot** pair additional devices unless Device A granted that permission
 
