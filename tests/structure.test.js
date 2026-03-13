@@ -56,6 +56,25 @@ describe('service-worker.js', () => {
     assert.ok(sw.includes('./index.html'), 'SW missing index.html');
     assert.ok(sw.includes('./manifest.json'), 'SW missing manifest.json');
   });
+
+  it('chains postMessage into waitUntil promise', () => {
+    // The matchAll().then(postMessage) must be returned so waitUntil keeps the SW alive
+    assert.ok(
+      sw.includes('return self.clients.matchAll()'),
+      'matchAll call must be returned into the waitUntil chain'
+    );
+  });
+});
+
+describe('CI hash includes service-worker.js', () => {
+  const ci = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');
+
+  it('hash input includes service-worker.js', () => {
+    // The HASH= line in CI must cat service-worker.js so SW-only changes bust the cache
+    const hashLine = ci.split('\n').find(l => l.includes('HASH=$(cat'));
+    assert.ok(hashLine, 'CI must have a HASH=$(cat ...) line');
+    assert.ok(hashLine.includes('service-worker.js'), 'CI hash must include service-worker.js');
+  });
 });
 
 describe('manifest.json', () => {
