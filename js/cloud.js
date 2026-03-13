@@ -949,13 +949,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js').catch(() => {});
 }
 
-// Clean up cache-busting param from force refresh so it doesn't linger in the URL bar
-if (window.location.search.includes('_refresh=')) {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('_refresh');
-  history.replaceState(null, '', url.pathname + url.search + url.hash);
-}
-
 // Version polling — detects new deploys reliably on all platforms (including iOS PWAs)
 // Fetches version.txt (never cached by SW) and force-refreshes if it differs from APP_VERSION.
 async function checkForUpdate() {
@@ -973,7 +966,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkForUpdate();
 });
 
-// Force refresh — clears SW cache and reloads from network
+// Force refresh — clears SW cache, busts browser HTTP cache, then reloads
 async function forceRefresh() {
   if ('serviceWorker' in navigator) {
     const keys = await caches.keys();
@@ -981,11 +974,12 @@ async function forceRefresh() {
     const reg = await navigator.serviceWorker.getRegistration();
     if (reg) await reg.unregister();
   }
-  // Navigate with cache-busting param to bypass browser HTTP cache on desktop.
-  // Plain reload() only clears SW cache but desktop browsers still serve from disk cache.
-  const url = new URL(window.location.href);
-  url.searchParams.set('_refresh', Date.now());
-  window.location.replace(url.href);
+  // Pre-fetch all app assets with cache:'no-store' to evict them from the
+  // browser HTTP cache. This fixes desktop (which ignores SW-only cache clears)
+  // without breaking mobile PWAs (where location.replace with query params fails).
+  const assets = ['./', './index.html', './css/styles.css', './js/checklist-data.js', './js/app.js', './js/cloud.js'];
+  await Promise.all(assets.map(a => fetch(a, { cache: 'no-store' }).catch(() => {})));
+  window.location.reload();
 }
 
 // Event delegation for save slot buttons (attached once)
