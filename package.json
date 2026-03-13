@@ -6,6 +6,7 @@
   "description": "PWA for pre-purchase RV and camper trailer inspections",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "lint": "node tests/lint.js"
+    "lint": "node tests/lint.js",
+    "cache-hash": "cat index.html css/styles.css js/app.js js/checklist-data.js js/cloud.js manifest.json | shasum -a 256 | cut -c1-8"
   }
 }

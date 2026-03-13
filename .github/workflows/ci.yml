@@ -35,6 +35,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Stamp version and cache name
+        run: |
+          HASH=$(cat index.html css/styles.css js/app.js js/checklist-data.js js/cloud.js manifest.json | sha256sum | cut -c1-8)
+          sed -i "s/const CACHE_NAME = .*/const CACHE_NAME = 'rv-inspect-${HASH}';/" service-worker.js
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          sed -i "s/const APP_VERSION = .*/const APP_VERSION = '${PKG_VERSION} (${SHORT_SHA})';/" js/app.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

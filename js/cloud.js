@@ -345,6 +345,7 @@ function showCloudModal() {
   }
   const handleEl = document.getElementById('handleInput');
   if (handleEl) handleEl.value = getHandle();
+  document.getElementById('appVersionInfo').textContent = 'Version: ' + APP_VERSION;
   document.getElementById('cloudModal').classList.add('show');
   updateCloudUI();
 }

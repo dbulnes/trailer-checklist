@@ -299,6 +299,9 @@ body:has(.modal-overlay.show), body:has(.confirm-overlay.show), body:has(.lightb
 .cloud-section summary {
   font-size: .8rem; color: var(--text2); cursor: pointer; padding: 6px 0;
 }
+.app-version-info {
+  font-size: .75rem; color: var(--text2); margin: 8px 0 0; font-family: monospace;
+}
 .cloud-msg {
   font-size: .8rem; padding: 8px 12px; border-radius: 8px; margin: 8px 0;
   background: #1a2a1a; color: var(--ok); display: none;

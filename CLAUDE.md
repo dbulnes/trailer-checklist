@@ -38,7 +38,7 @@ npx serve .
 # Open http://localhost:3000
 ```
 
-A service worker (`service-worker.js`) caches assets for offline use. **Bump `CACHE_NAME` in `service-worker.js`** whenever you change any `.js`, `.css`, or `.html` file, otherwise returning users will see stale cached versions.
+A service worker (`service-worker.js`) caches assets for offline use. `CACHE_NAME` is automatically replaced with a content hash during CI deploy — no manual bumping needed. Run `npm run cache-hash` to see the current hash locally.
 
 ## Testing
 
@@ -89,6 +89,6 @@ Optional cloud persistence via user-provided Supabase project (BYO model — no 
 
 - All commits must use author: `dbulnes <d@vidbuln.es>`
 - No build step — edit files directly and test in browser
-- When adding/moving files: update service-worker.js ASSETS array and bump CACHE_NAME
+- When adding/moving files: update service-worker.js ASSETS array (CACHE_NAME is auto-stamped by CI)
 - External dependencies (all via CDN): Supabase JS client, barcode-detector polyfill, qrcode-generator (all loaded on demand except Supabase JS)
 - Mobile-first: test changes at phone viewport widths

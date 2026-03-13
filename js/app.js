@@ -1,3 +1,5 @@
+// App version — CI replaces this with "package.json version (git-short-hash)" at deploy time
+const APP_VERSION = 'dev';
 
 // ====== TOAST ======
 // In-app notification — replaces browser alert() calls

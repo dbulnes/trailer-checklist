@@ -6,8 +6,8 @@
  *   - CDN scripts (Supabase JS, barcode polyfill): network-first, fallback to cache
  *   - Supabase API calls: network-only, never cached
  *
- * Bump CACHE_NAME whenever you change index.html or manifest.json so that
- * returning users pick up the new version instead of seeing stale cache.
+ * CACHE_NAME is automatically replaced with a content hash during CI deploy.
+ * The value below is used for local development only.
  */
 const CACHE_NAME = 'rv-inspect-v31';
 const ASSETS = ['./index.html', './manifest.json', './css/styles.css', './js/checklist-data.js', './js/app.js', './js/cloud.js'];
