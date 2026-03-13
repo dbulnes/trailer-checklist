@@ -9,7 +9,7 @@
  * Bump CACHE_NAME whenever you change index.html or manifest.json so that
  * returning users pick up the new version instead of seeing stale cache.
  */
-const CACHE_NAME = 'rv-inspect-v27';
+const CACHE_NAME = 'rv-inspect-v28';
 const ASSETS = ['./index.html', './manifest.json', './checklist-data.js', './app.js', './cloud.js'];
 
 

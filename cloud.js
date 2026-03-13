@@ -41,6 +41,7 @@ function autoLoad() {
   if (keys.length === 0) return;
   const latest = keys.reduce((a, b) => (saves[a].ts || 0) >= (saves[b].ts || 0) ? a : b);
   state = JSON.parse(JSON.stringify(saves[latest].data));
+  ensureByField();
   currentSaveName = latest;
 }
 
@@ -179,6 +180,7 @@ function loadSave(name) {
   const saves = getSaves();
   if (saves[name]) {
     state = JSON.parse(JSON.stringify(saves[name].data));
+    ensureByField();
     currentSaveName = name;
     autoSave();
     renderSections();
@@ -277,6 +279,7 @@ function initSupabase() {
       if (currentUser && !reconcilePromise) {
         reconcilePromise = reconcileOnLoad().finally(() => { reconcilePromise = null; });
       }
+      if (event === 'SIGNED_IN' && currentUser) ensureHandle();
     });
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       currentUser = session?.user || null;
@@ -340,6 +343,8 @@ function showCloudModal() {
     document.getElementById('byoUrl').value = config.url;
     document.getElementById('byoKey').value = config.key;
   }
+  const handleEl = document.getElementById('handleInput');
+  if (handleEl) handleEl.value = getHandle();
   document.getElementById('cloudModal').classList.add('show');
   updateCloudUI();
 }
@@ -457,6 +462,7 @@ async function cloudSyncNow() {
       // Reload current save if it was updated
       if (currentSaveName && saves[currentSaveName]) {
         state = JSON.parse(JSON.stringify(saves[currentSaveName].data));
+        ensureByField();
         renderSections();
         loadInfoFields();
         SECTIONS.forEach(s => updateBadge(s.id));
@@ -502,6 +508,7 @@ async function pushSaveToCloud(name, data) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
         if (name === currentSaveName) {
           state = JSON.parse(JSON.stringify(existing.state));
+          ensureByField();
           renderSections();
           loadInfoFields();
           SECTIONS.forEach(s => updateBadge(s.id));
@@ -560,6 +567,7 @@ async function reconcileOnLoad() {
         // If current save was updated from cloud, reload it
         if (currentSaveName && localSaves[currentSaveName]) {
           state = JSON.parse(JSON.stringify(localSaves[currentSaveName].data));
+          ensureByField();
           renderSections();
           loadInfoFields();
           SECTIONS.forEach(s => updateBadge(s.id));
@@ -734,6 +742,8 @@ async function claimPairURL(pairUrl) {
 
     msgEl.className = 'cloud-msg';
     showToast('Device linked!');
+    // Prompt for a display name if not set
+    ensureHandle();
   } catch (e) {
     console.error('Claim error:', e);
     showCloudMsg(msgEl, 'Invalid QR code.', true);

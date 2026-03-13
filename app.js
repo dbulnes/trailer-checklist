@@ -45,16 +45,35 @@ function appConfirm(msg) {
 // state.notes   — per-item text notes, same key format
 // state.inputs  — per-item measurement/input values (e.g. tire pressure)
 // state.summary — overall condition, recommended action, cost notes
-function freshState() { return { info: {}, checks: {}, notes: {}, inputs: {}, summary: {} }; }
+function freshState() { return { info: {}, checks: {}, notes: {}, inputs: {}, summary: {}, by: {} }; }
 let state = freshState();
 
 // Tracks the currently-loaded named save so auto-save updates it too
 let currentSaveName = null;
 
+// ====== USER HANDLE (attribution) ======
+const HANDLE_KEY = 'rv_inspect_handle';
+function getHandle() { return localStorage.getItem(HANDLE_KEY) || ''; }
+function setHandle(h) { localStorage.setItem(HANDLE_KEY, h.trim()); }
+function stampBy(key) { const h = getHandle(); if (h) { if (!state.by) state.by = {}; state.by[key] = h; } }
+// Ensure state.by exists (for saves created before attribution was added)
+function ensureByField() { if (!state.by) state.by = {}; }
+function isMultiContributor() {
+  if (!state.by) return false;
+  const handles = new Set(Object.values(state.by).filter(Boolean));
+  return handles.size > 1;
+}
+async function ensureHandle() {
+  if (getHandle()) return;
+  const name = prompt('Enter your name or initials (for attributing changes):');
+  if (name && name.trim()) setHandle(name.trim());
+}
+
 // ====== RENDER ======
 // Builds the checklist UI from the SECTIONS array. Each section is a collapsible
 // card with a badge showing progress. Items render as tappable check rows.
 function renderSections() {
+  _wasMulti = isMultiContributor();
   const container = document.getElementById('sectionsContainer');
   container.innerHTML = '';
   SECTIONS.forEach(section => {
@@ -105,11 +124,16 @@ function renderItem(sectionId, item, idx) {
   else if (checkState === 'issue') checkClass = 'issue';
   else if (checkState === 'na') checkClass = 'na';
 
+  const byWho = state.by?.[key] || '';
+  const multi = isMultiContributor();
+  const attrHtml = multi && byWho ? `<span class="attribution" id="attr_${key}">${escHtml(byWho)}</span>` : `<span class="attribution" id="attr_${key}"></span>`;
+
   return `
     <div class="check-item ${isCritical && sectionId === 'red_flags' ? 'red-flag' : ''}">
       <div class="check-row">
         <div class="check-box ${checkClass}" onclick="cycleCheck('${key}')" id="box_${key}">${checkIcon}</div>
         <span class="check-label ${isCritical ? 'critical' : ''}" onclick="cycleCheck('${key}')">${text}</span>
+        ${attrHtml}
       </div>
       ${hasInput ? `<input class="check-note visible" style="display:block" placeholder="${inputLabel}" value="${escHtml(inputVal)}" oninput="setInput('${key}',this.value)">` : ''}
       <div class="item-actions">
@@ -136,6 +160,7 @@ function cycleCheck(key) {
   const cur = state.checks[key] || 'unchecked';
   const next = states[(states.indexOf(cur) + 1) % states.length];
   state.checks[key] = next;
+  stampBy(key);
 
   const box = document.getElementById('box_' + key);
   box.className = 'check-box';
@@ -146,6 +171,7 @@ function cycleCheck(key) {
 
   updateBadge(key.split('_').slice(0, -1).join('_'));
   updateProgress();
+  updateAttribution(key);
   autoSave();
 }
 
@@ -155,8 +181,25 @@ function toggleNote(key) {
   if (el.classList.contains('visible')) el.focus();
 }
 
-function setNote(key, val) { state.notes[key] = val; autoSave(); }
-function setInput(key, val) { state.inputs[key] = val; autoSave(); }
+function setNote(key, val) { state.notes[key] = val; stampBy(key); autoSave(); }
+function setInput(key, val) { state.inputs[key] = val; stampBy(key); autoSave(); }
+
+let _wasMulti = false;
+function updateAttribution(key) {
+  const multi = isMultiContributor();
+  const el = document.getElementById('attr_' + key);
+  if (el) el.textContent = multi && state.by?.[key] ? state.by[key] : '';
+  // If we just crossed the threshold, refresh all attribution labels
+  if (multi && !_wasMulti) {
+    _wasMulti = true;
+    document.querySelectorAll('.attribution').forEach(a => {
+      const k = a.id.replace('attr_', '');
+      a.textContent = state.by?.[k] || '';
+    });
+  } else if (!multi && _wasMulti) {
+    _wasMulti = false;
+  }
+}
 
 // ====== PHOTOS (IndexedDB) ======
 // Photos are stored in IndexedDB (not localStorage) because images are too large.
@@ -660,12 +703,14 @@ function gatherExportData() {
       const note = state.notes[key] || '';
       const input = state.inputs[key] || '';
       const critical = typeof item === 'object' && item.critical;
-      return { key, text, status, note, input, critical };
+      const by = state.by?.[key] || '';
+      return { key, text, status, note, input, critical, by };
     });
     return { id: s.id, title: s.title, items };
   });
 
-  return { info, stats: { ok, issues, pending, na }, sections, summary: state.summary };
+  const multi = isMultiContributor();
+  return { info, stats: { ok, issues, pending, na }, sections, summary: state.summary, multi };
 }
 
 // Status symbols for text/markdown
@@ -742,6 +787,7 @@ function exportMarkdown() {
       const meta = [it.input, it.note].filter(Boolean).join(' · ');
       if (meta) md += ` — *${meta}*`;
       if (it.status === 'na') md += ' *(N/A)*';
+      if (d.multi && it.by) md += ` — ${it.by}`;
       md += '\n';
     }
     md += '\n';
@@ -897,6 +943,7 @@ async function exportPDF() {
   .item-critical { font-weight: 600; color: #991b1b; }
   .item-critical::before { content: "\\26A0 "; color: #dc2626; }
   .item-meta { font-size: 10px; color: #86868b; margin-top: 2px; line-height: 1.4; }
+  .item-by { font-size: 9px; color: #aeaeb2; font-weight: 500; margin-left: 4px; }
   .item-photos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .item-photos img { width: 110px; height: 82px; object-fit: cover; border-radius: 6px; }
 
@@ -999,7 +1046,9 @@ async function exportPDF() {
     html += '</div></div><div class="section-body">';
     for (const it of s.items) {
       html += `<div class="item"><div class="item-pill">${statusPill(it.status)}</div><div class="item-content">`;
-      html += `<div class="item-text${it.critical ? ' item-critical' : ''}">${escHtml(it.text)}</div>`;
+      html += `<div class="item-text${it.critical ? ' item-critical' : ''}">${escHtml(it.text)}`;
+      if (d.multi && it.by) html += ` <span class="item-by">${escHtml(it.by)}</span>`;
+      html += '</div>';
       if (it.note || it.input) {
         html += '<div class="item-meta">';
         if (it.input) html += escHtml(it.input);

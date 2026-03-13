@@ -116,6 +116,7 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .check-label.critical { color: var(--warn); font-weight: 600; }
+.attribution { font-size: .65rem; color: var(--text2); opacity: .7; flex-shrink: 0; align-self: center; margin-left: auto; padding-left: 6px; }
 .check-note {
   width: 100%; background: var(--surface2); border: 1px solid #2a2a4a;
   color: var(--text); border-radius: 8px; padding: 6px 10px;
@@ -484,6 +485,10 @@ body:has(.modal-overlay.show), body:has(.confirm-overlay.show), body:has(.lightb
     <div id="cloudLoggedIn" style="display:none">
       <p style="font-size:.8rem;color:var(--text2)">Signed in as</p>
       <p class="cloud-email" id="cloudUserEmail"></p>
+      <div style="margin:8px 0">
+        <label style="font-size:.75rem;color:var(--text2);display:block;margin-bottom:4px">Your display name</label>
+        <input type="text" id="handleInput" placeholder="e.g. David" maxlength="20" style="width:100%;background:var(--surface2);border:1px solid #3a3a5a;color:var(--text);border-radius:8px;padding:8px 10px;font-size:.85rem;outline:none" oninput="setHandle(this.value)">
+      </div>
       <p class="cloud-status" id="cloudSyncStatus">Not synced yet</p>
       <button class="btn btn-accent" style="width:100%;justify-content:center;padding:10px;margin-top:8px" onclick="cloudSyncNow()">Sync Now</button>
       <hr class="cloud-divider">
