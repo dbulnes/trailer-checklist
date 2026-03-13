@@ -905,7 +905,8 @@ async function exportPDF() {
           body: JSON.stringify(d),
         });
         if (resp.ok) {
-          const blob = await resp.blob();
+          const rawBlob = await resp.blob();
+          const blob = rawBlob.type === 'application/pdf' ? rawBlob : new Blob([rawBlob], { type: 'application/pdf' });
           const filename = (title.replace(/[^a-zA-Z0-9 _-]/g, '') || 'inspection').replace(/ /g, '_') + '.pdf';
           downloadBlob(blob, filename);
           const pdfUrl = resp.headers.get('X-PDF-URL');
@@ -1211,9 +1212,10 @@ async function exportPDF() {
 
 async function downloadBlob(blob, filename) {
   // iOS PWA: use Web Share API (native share sheet with "Save to Files")
-  if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename)] })) {
+  const file = new File([blob], filename, { type: blob.type || 'application/pdf' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [new File([blob], filename, { type: blob.type })] });
+      await navigator.share({ files: [file] });
       return;
     } catch (e) {
       if (e.name === 'AbortError') return; // user cancelled share
