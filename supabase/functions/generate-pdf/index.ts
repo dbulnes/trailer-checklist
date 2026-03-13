@@ -2,7 +2,9 @@
 // Receives structured inspection data, generates a PDF using pdf-lib,
 // saves it to Supabase Storage, and returns the PDF + signed URL.
 
+// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-ignore
 import {
   PDFDocument,
   rgb,
