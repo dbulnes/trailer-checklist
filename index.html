@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#1a1a2e">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='36' fill='%231a1a2e'/><text x='90' y='70' text-anchor='middle' font-size='50'>🏕️</text><text x='90' y='120' text-anchor='middle' fill='white' font-size='22' font-family='system-ui'>INSPECT</text></svg>">
-<title>Micro Minnie Inspection</title>
+<title>Camper Trailer Inspector</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -65,6 +65,7 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 }
 .info-field input:focus { border-color: var(--accent); }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { .info-grid { grid-template-columns: 1fr; } }
 
 /* Sections */
 .section {
@@ -260,7 +261,7 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 
 <div class="header">
   <div class="header-row">
-    <h1>🏕️ Micro Minnie Inspection</h1>
+    <h1 id="appTitle">🏕️ Camper Trailer Inspector</h1>
     <div class="toolbar">
       <button class="btn" onclick="showSaveModal()">💾</button>
       <button class="btn" onclick="showSummary()">📋</button>
@@ -277,6 +278,7 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
   <!-- Info Fields -->
   <div class="info-section">
     <h2>Inspection Info</h2>
+    <div class="info-field"><label>Checklist Name</label><input type="text" data-info="name" placeholder="e.g. 2021 Micro Minnie 1708FB"></div>
     <div class="info-grid">
       <div class="info-field"><label>Date</label><input type="date" data-info="date"></div>
       <div class="info-field"><label>Location</label><input type="text" data-info="location" placeholder="Location"></div>
@@ -387,6 +389,8 @@ h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ====== CHECKLIST DATA ======
+// Each section has: id (unique key), title, icon, optional priority flag, and items[].
+// Items can be plain strings or objects with {text, critical, input, inputLabel}.
 const SECTIONS = [
   {
     id: 'ext_body', title: 'Fiberglass Body & Structure', icon: '🏠',
@@ -731,9 +735,19 @@ const SECTIONS = [
 ];
 
 // ====== STATE ======
+// state.info    — inspection metadata (name, date, location, seller, etc.)
+// state.checks  — per-item check status keyed by "sectionId_itemIndex"
+// state.notes   — per-item text notes, same key format
+// state.inputs  — per-item measurement/input values (e.g. tire pressure)
+// state.summary — overall condition, recommended action, cost notes
 let state = { info: {}, checks: {}, notes: {}, inputs: {}, summary: {} };
 
+// Tracks the currently-loaded named save so auto-save updates it too
+let currentSaveName = null;
+
 // ====== RENDER ======
+// Builds the checklist UI from the SECTIONS array. Each section is a collapsible
+// card with a badge showing progress. Items render as tappable check rows.
 function renderSections() {
   const container = document.getElementById('sectionsContainer');
   container.innerHTML = '';
@@ -801,6 +815,8 @@ function renderItem(sectionId, item, idx) {
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ====== INTERACTIONS ======
+// Tap cycle: unchecked → ok (✓) → issue (✗) → na (—) → unchecked.
+// Notes and measurement inputs are per-item, keyed by "sectionId_itemIndex".
 function toggleSection(id) {
   document.getElementById('section_' + id).classList.toggle('open');
 }
@@ -860,21 +876,32 @@ function updateProgress() {
   });
   const pct = total ? (done / total * 100) : 0;
   document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressText').textContent = `${done} / ${total} (${Math.round(pct)}%)`;
+  const saveLabel = currentSaveName ? ` — ${currentSaveName}` : '';
+  document.getElementById('progressText').textContent = `${done} / ${total} (${Math.round(pct)}%)${saveLabel}`;
 }
 
 // ====== INFO FIELDS ======
+// Bind each data-info input to state.info and auto-save on change.
+// The "name" field also updates the app header title dynamically.
 document.querySelectorAll('[data-info]').forEach(el => {
   el.addEventListener('input', () => {
     state.info[el.dataset.info] = el.value;
+    if (el.dataset.info === 'name') updateAppTitle();
     autoSave();
   });
 });
+
+function updateAppTitle() {
+  const name = (state.info.name || '').trim();
+  document.getElementById('appTitle').textContent = name ? '🏕️ ' + name : '🏕️ Camper Trailer Inspector';
+  document.title = name || 'Camper Trailer Inspector';
+}
 
 function loadInfoFields() {
   document.querySelectorAll('[data-info]').forEach(el => {
     if (state.info[el.dataset.info]) el.value = state.info[el.dataset.info];
   });
+  updateAppTitle();
 }
 
 // ====== SUMMARY ======
@@ -946,7 +973,8 @@ function setRadio(field, value, el) {
 }
 
 function exportSummary() {
-  let text = '=== MICRO MINNIE 1708FB INSPECTION SUMMARY ===\n\n';
+  const summaryTitle = (state.info.name || 'CAMPER TRAILER INSPECTION').toUpperCase();
+  let text = `=== ${summaryTitle} SUMMARY ===\n\n`;
 
   // Info
   const info = state.info;
@@ -1047,11 +1075,23 @@ function switchView(view, btn) {
 }
 
 // ====== SAVE / LOAD ======
+// localStorage keys:
+//   rv_inspect_autosave — auto-saved state (updated on every change)
+//   rv_inspect_saves    — { "name": { data: state, ts: timestamp }, ... }
+// Named saves can be created, loaded, and deleted from the save modal.
+// When a named save is loaded or created, currentSaveName is set so that
+// subsequent auto-saves also update that named save automatically.
 const STORAGE_KEY = 'rv_inspect_saves';
 const AUTOSAVE_KEY = 'rv_inspect_autosave';
 
 function autoSave() {
   localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+  // If working on a named save, keep it updated too
+  if (currentSaveName) {
+    const saves = getSaves();
+    saves[currentSaveName] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+  }
   debouncedCloudSync();
 }
 
@@ -1086,7 +1126,6 @@ function showSaveModal() {
           <div class="save-slot-date">${d}</div>
           <div class="save-slot-actions">
             <button class="save-slot-btn" onclick="loadSave('${safeName}')">Load</button>
-            <button class="save-slot-btn" onclick="overwriteSave('${safeName}')">Overwrite</button>
             <button class="save-slot-btn delete" onclick="deleteSave('${safeName}')">Delete</button>
           </div>
         </div>`;
@@ -1094,7 +1133,8 @@ function showSaveModal() {
   }
 
   slotsEl.innerHTML = html + '<div id="cloudSaveSlots"></div>';
-  document.getElementById('newSaveName').value = state.info.location ? `${state.info.location} - ${state.info.date || 'Inspection'}` : '';
+  const suggestedName = state.info.name || (state.info.location ? `${state.info.location} - ${state.info.date || 'Inspection'}` : '');
+  document.getElementById('newSaveName').value = suggestedName;
   document.getElementById('saveModal').classList.add('show');
 
   // Fetch cloud saves
@@ -1171,6 +1211,7 @@ async function loadCloudSave(name) {
       .select('state').eq('user_id', currentUser.id).eq('name', name).single();
     if (error) throw error;
     state = data.state;
+    currentSaveName = name;
     autoSaveLocal();
     // Also save to local named saves
     const saves = getSaves();
@@ -1204,16 +1245,7 @@ function saveNew() {
   const saves = getSaves();
   saves[name] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
-  pushSaveToCloud(name, state);
-  closeSaveModal();
-  alert('Saved!');
-}
-
-function overwriteSave(name) {
-  if (!confirm(`Overwrite "${name}"?`)) return;
-  const saves = getSaves();
-  saves[name] = { data: JSON.parse(JSON.stringify(state)), ts: Date.now() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+  currentSaveName = name;
   pushSaveToCloud(name, state);
   closeSaveModal();
   alert('Saved!');
@@ -1224,6 +1256,7 @@ function loadSave(name) {
   const saves = getSaves();
   if (saves[name]) {
     state = JSON.parse(JSON.stringify(saves[name].data));
+    currentSaveName = name;
     autoSave();
     renderSections();
     loadInfoFields();
@@ -1244,12 +1277,19 @@ function deleteSave(name) {
 function resetAll() {
   if (!confirm('Reset all progress?')) return;
   state = { info: {}, checks: {}, notes: {}, inputs: {}, summary: {} };
+  currentSaveName = null;
   autoSave();
   renderSections();
   loadInfoFields();
 }
 
 // ====== CLOUD SYNC (SUPABASE) ======
+// Offline-first: localStorage is always the source of truth. Supabase is optional.
+// BYO model — users provide their own Supabase project URL and publishable key.
+// Auth uses email magic links. State is stored as JSONB in an "inspections" table,
+// one row per named save per user. Auto-save uses the reserved name "__autosave__".
+// Changes are debounced (2s) before pushing to cloud. On load, cloud and local
+// are reconciled with conflict detection (newer version wins, user chooses).
 const BYO_CONFIG_KEY = 'rv_inspect_supabase';
 let supabaseClient = null;
 let currentUser = null;
@@ -1415,6 +1455,10 @@ async function cloudSync() {
       state: state
     }, { onConflict: 'user_id,name' });
     if (error) throw error;
+    // Also sync the current named save to cloud
+    if (currentSaveName) {
+      await pushSaveToCloud(currentSaveName, state);
+    }
     lastSyncTime = Date.now();
     setSyncStatus('synced');
     updateCloudUI();
@@ -1572,7 +1616,7 @@ if (typeof window.supabase !== 'undefined') {
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
 }
 </script>
 </body>

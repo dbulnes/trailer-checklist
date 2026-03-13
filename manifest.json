@@ -1,7 +1,7 @@
 {
-  "name": "Micro Minnie Inspection Checklist",
-  "short_name": "RV Inspect",
-  "description": "Pre-Purchase Inspection Checklist for 2021 Winnebago Micro Minnie 1708FB",
+  "name": "Camper Trailer Inspector",
+  "short_name": "Inspect",
+  "description": "Mobile inspection checklist PWA for pre-purchase camper trailer evaluations",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1a1a2e",

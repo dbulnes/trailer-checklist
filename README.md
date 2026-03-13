@@ -1,14 +1,15 @@
-# Micro Minnie 1708FB Inspection Checklist
+# Camper Trailer Inspector
 
-A mobile-friendly progressive web app (PWA) for conducting a pre-purchase inspection of a 2021 Winnebago Micro Minnie 1708FB travel trailer.
+A mobile-friendly progressive web app (PWA) for conducting pre-purchase inspections of camper trailers and RVs. Name each checklist to match the unit you're inspecting.
 
 ## Features
 
 - **23 inspection sections** covering exterior, interior, plumbing, electrical, propane, appliances, and more
+- **Custom checklist name** — name each inspection (e.g. "2021 Micro Minnie 1708FB")
 - **Tap to cycle** each item: unchecked → ✓ pass → ✗ issue → — N/A
 - **Notes and measurements** on any item (temperatures, voltages, tire pressures, etc.)
-- **Auto-save** — progress saves automatically to your device
-- **Named saves** — save, load, overwrite, and delete multiple inspections
+- **Auto-save** — progress saves automatically to your device and to the current named save
+- **Named saves** — save, load, and delete multiple inspections
 - **Summary view** — see pass/issue/pending counts, all flagged issues, set overall condition and recommended action
 - **Export** — share or copy a full text summary of findings
 - **Offline support** — works without internet via service worker
@@ -92,7 +93,7 @@ Your inspections will now sync across any device where you sign in.
 
 ## Based On
 
-The checklist is based on the included [Micro Minnie Inspection Checklist.pdf](Micro%20Minnie%20Inspection%20Checklist.pdf), a comprehensive pre-purchase inspection guide for the 2021 Winnebago Micro Minnie 1708FB.
+The default checklist items are based on the included [Micro Minnie Inspection Checklist.pdf](Micro%20Minnie%20Inspection%20Checklist.pdf), a comprehensive pre-purchase inspection guide that covers most camper trailer systems.
 
 ## License
 

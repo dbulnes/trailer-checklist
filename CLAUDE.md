@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Self-contained PWA for pre-purchase inspection of a 2021 Winnebago Micro Minnie 1708FB travel trailer. No build tools, no dependencies, no framework — just static files served directly.
+Self-contained PWA for pre-purchase camper trailer inspections. Users can name each checklist (e.g. "2021 Micro Minnie 1708FB") via a field in the header. No build tools, no dependencies, no framework — just static files served directly.
 
 ## Running Locally
 
@@ -13,7 +13,7 @@ python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
-A service worker (`sw.js`) caches assets for offline use. **Bump `CACHE_NAME` in `sw.js`** whenever you change `index.html` or `manifest.json`, otherwise returning users will see stale cached versions.
+A service worker (`service-worker.js`) caches assets for offline use. **Bump `CACHE_NAME` in `service-worker.js`** whenever you change `index.html` or `manifest.json`, otherwise returning users will see stale cached versions.
 
 ## Architecture
 
@@ -28,8 +28,8 @@ Everything lives in a single `index.html` file with inline CSS and JS:
 
 Supporting files:
 - `manifest.json` — PWA manifest for home screen install
-- `sw.js` — Service worker with cache-first and network-first strategies
-- `Micro Minnie Inspection Checklist.pdf` — Source PDF the checklist was derived from
+- `service-worker.js` — Service worker with cache-first and network-first strategies
+- `Micro Minnie Inspection Checklist.pdf` — Source PDF the original checklist was derived from
 
 ## Cloud Sync (Supabase)
 
